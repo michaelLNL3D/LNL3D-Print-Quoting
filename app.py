@@ -54,6 +54,34 @@ _error_log = []
 _progress = {}
 _PROGRESS_TTL = 300  # seconds — evict entries older than 5 minutes
 
+# ── Data persistence (ported from Node.js server) ─────────────────────────────
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+QUOTES_FILE = os.path.join(DATA_DIR, "quotes.json")
+CUSTOMERS_FILE = os.path.join(DATA_DIR, "customers.json")
+SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+
+os.makedirs(DATA_DIR, exist_ok=True)
+for _f, _default in [(QUOTES_FILE, "[]"), (CUSTOMERS_FILE, "[]"), (SETTINGS_FILE, "{}")]:
+    if not os.path.exists(_f):
+        with open(_f, "w") as _fh:
+            _fh.write(_default)
+
+def _read_json(filepath, fallback):
+    """Read a JSON file, return fallback string on error."""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read()
+    except (OSError, IOError):
+        return fallback
+
+
+def _write_json(filepath, data_str):
+    """Validate JSON string and write to file. Raises ValueError if invalid."""
+    json.loads(data_str)  # validate
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(data_str)
+
+
 def _emit(pid, label, status, detail=None):
     """Emit a progress step. If a step with the same label exists, update it in-place."""
     if not pid:
@@ -1291,6 +1319,50 @@ def api_export_gcode():
     buf.seek(0)
     return send_file(buf, as_attachment=True, download_name=f"{stem}_quote.zip",
                      mimetype="application/zip")
+
+
+# ── Data persistence API (quotes, settings, customers) ────────────────────────
+
+@app.route("/api/qdata/quotes", methods=["GET"])
+def api_get_quotes():
+    return app.response_class(_read_json(QUOTES_FILE, "[]"), mimetype="application/json")
+
+
+@app.route("/api/qdata/quotes", methods=["POST"])
+def api_post_quotes():
+    try:
+        _write_json(QUOTES_FILE, request.get_data(as_text=True))
+        return jsonify({"ok": True})
+    except (ValueError, OSError) as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/qdata/settings", methods=["GET"])
+def api_get_settings():
+    return app.response_class(_read_json(SETTINGS_FILE, "{}"), mimetype="application/json")
+
+
+@app.route("/api/qdata/settings", methods=["POST"])
+def api_post_settings():
+    try:
+        _write_json(SETTINGS_FILE, request.get_data(as_text=True))
+        return jsonify({"ok": True})
+    except (ValueError, OSError) as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/qdata/customers", methods=["GET"])
+def api_get_customers():
+    return app.response_class(_read_json(CUSTOMERS_FILE, "[]"), mimetype="application/json")
+
+
+@app.route("/api/qdata/customers", methods=["POST"])
+def api_post_customers():
+    try:
+        _write_json(CUSTOMERS_FILE, request.get_data(as_text=True))
+        return jsonify({"ok": True})
+    except (ValueError, OSError) as e:
+        return jsonify({"error": str(e)}), 400
 
 
 # ── HTML / CSS / JS ───────────────────────────────────────────────────────────
