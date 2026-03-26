@@ -1808,6 +1808,168 @@ HTML = """<!DOCTYPE html>
     border-color: var(--q-accent2);
     background: var(--q-bg2);
   }
+
+  /* ═══════════════════════════════════════════════════════════════
+     QUICK QUOTE OVERLAY (Task 6)
+  ═══════════════════════════════════════════════════════════════ */
+  #quick-quote-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 9999;
+    display: none;
+    overflow-y: auto;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #quick-quote-overlay.open { display: block; }
+  .qq-container {
+    max-width: 900px;
+    margin: 40px auto;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.6);
+  }
+  .qq-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .qq-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 22px;
+    color: #e6edf3; margin: 0;
+  }
+  .qq-back-btn {
+    background: none; border: 1px solid #484f58; color: #8b949e;
+    padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all .15s;
+  }
+  .qq-back-btn:hover { background: #21262d; color: #e6edf3; }
+
+  .qq-item-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .qq-item-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px;
+  }
+  .qq-item-filename {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 15px; color: #e6edf3;
+    flex: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .qq-item-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 80px;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .qq-item-controls select,
+  .qq-item-controls input {
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    color: #e6edf3;
+    font-size: 13px;
+    padding: 7px 10px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .qq-item-controls select:focus,
+  .qq-item-controls input:focus {
+    outline: none;
+    border-color: #388bfd;
+  }
+  .qq-item-controls label {
+    font-size: 10px; font-weight: 600; color: #6e7681;
+    text-transform: uppercase; letter-spacing: .5px;
+    margin-bottom: 3px; display: block;
+  }
+
+  .qq-breakdown {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 6px 14px;
+    font-size: 12px;
+  }
+  .qq-breakdown-row {
+    display: flex; justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px solid #21262d;
+  }
+  .qq-breakdown-label { color: #8b949e; }
+  .qq-breakdown-value { color: #e6edf3; font-family: 'DM Mono', monospace; font-weight: 500; }
+  .qq-breakdown-value.accent { color: #388bfd; }
+  .qq-breakdown-value.green  { color: #3fb950; }
+  .qq-breakdown-value.yellow { color: #d29922; }
+
+  .qq-totals {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 18px;
+    margin-top: 20px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .qq-total-item {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .qq-total-label { font-size: 10px; font-weight: 600; color: #6e7681; text-transform: uppercase; letter-spacing: .5px; }
+  .qq-total-value { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; color: #3fb950; }
+  .qq-total-value.blue { color: #388bfd; }
+
+  .qq-customer-row {
+    display: flex; gap: 12px; align-items: flex-end;
+    margin-top: 20px;
+  }
+  .qq-customer-row .qq-field { flex: 1; }
+  .qq-customer-row label {
+    font-size: 10px; font-weight: 600; color: #6e7681;
+    text-transform: uppercase; letter-spacing: .5px;
+    margin-bottom: 3px; display: block;
+  }
+  .qq-customer-row input {
+    background: #21262d; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 13px;
+    padding: 7px 10px; width: 100%;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .qq-customer-row input:focus { outline: none; border-color: #388bfd; }
+
+  .qq-actions {
+    display: flex; gap: 10px; margin-top: 20px;
+    justify-content: flex-end;
+  }
+  .qq-actions button {
+    padding: 8px 18px; border-radius: 6px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 1px solid transparent;
+    font-family: 'DM Sans', sans-serif;
+    transition: all .15s;
+  }
+  .qq-btn-log { background: #196c2e; color: #3fb950; border-color: #238636; }
+  .qq-btn-log:hover { background: #238636; color: #fff; }
+  .qq-btn-full { background: #1a6fde; color: #fff; border-color: #1a6fde; }
+  .qq-btn-full:hover { background: #388bfd; }
+  .qq-btn-cancel { background: none; color: #8b949e; border-color: #484f58; }
+  .qq-btn-cancel:hover { background: #21262d; color: #e6edf3; }
+
+  /* Send to Quote button in slicer results */
+  .send-to-quote-btn {
+    background: linear-gradient(135deg, #1a6fde, #388bfd);
+    color: #fff; border: none; border-radius: 8px;
+    padding: 0.5rem 1rem; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+    margin-top: 0.5rem;
+  }
+  .send-to-quote-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(56,139,253,.3); }
 </style>
 </head>
 <body>
@@ -3337,6 +3499,32 @@ setInterval(() => {
 </div><!-- /slicer-phase -->
 
 <!-- ═══════════════════════════════════════════════════════════════
+     QUICK QUOTE OVERLAY
+═══════════════════════════════════════════════════════════════ -->
+<div id="quick-quote-overlay">
+  <div class="qq-container">
+    <div class="qq-header">
+      <h2>Quick Quote</h2>
+      <button class="qq-back-btn" onclick="closeQuickQuote()">&#8592; Back</button>
+    </div>
+    <div id="qq-items"></div>
+    <div id="qq-totals" class="qq-totals" style="display:none"></div>
+    <div class="qq-customer-row">
+      <div class="qq-field">
+        <label>Customer</label>
+        <input type="text" id="qq-customer" list="qq-customer-list" placeholder="Select or type customer name...">
+        <datalist id="qq-customer-list"></datalist>
+      </div>
+    </div>
+    <div class="qq-actions">
+      <button class="qq-btn-cancel" onclick="closeQuickQuote()">Cancel</button>
+      <button class="qq-btn-full" onclick="openFullQuoteForm()">Full Details &#8594;</button>
+      <button class="qq-btn-log" onclick="logQuickQuote()">Log Quote</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
      QUOTING PHASE
 ═══════════════════════════════════════════════════════════════ -->
 <div id="quoting-phase" style="display:none">
@@ -3597,6 +3785,115 @@ function qCalcQuickQuote(slicerData, overrides) {
   };
 
   return qCalcFromQuoteData(q);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   QUICK QUOTE OVERLAY LOGIC  (Task 6)
+═══════════════════════════════════════════════════════════════ */
+let qqItems = [];    // [{slicerData, printer, filament, quantity, calc}]
+
+function openQuickQuote(slicerResults) {
+  qqItems = slicerResults.map(sr => {
+    const defaultPrinter  = (qState.settings.printers||[])[0]?.name || '';
+    const defaultFilament = 'PLA+';
+    const calc = qCalcQuickQuote(sr, { printer: defaultPrinter, filament: defaultFilament, quantity: 1 });
+    return {
+      slicerData: sr,
+      printer:    defaultPrinter,
+      filament:   defaultFilament,
+      quantity:   1,
+      calc:       calc
+    };
+  });
+  // Populate customer datalist
+  const dl = document.getElementById('qq-customer-list');
+  dl.innerHTML = (qState.customers||[]).map(c => '<option value="' + (c.name||c) + '">').join('');
+  document.getElementById('qq-customer').value = '';
+  renderQuickQuote();
+  document.getElementById('quick-quote-overlay').classList.add('open');
+}
+
+function closeQuickQuote() {
+  document.getElementById('quick-quote-overlay').classList.remove('open');
+  qqItems = [];
+}
+
+function qqUpdateItem(index, field, value) {
+  const item = qqItems[index];
+  if (!item) return;
+  if (field === 'printer')  item.printer  = value;
+  if (field === 'filament') item.filament = value;
+  if (field === 'quantity') item.quantity  = Math.max(parseInt(value)||1, 1);
+  item.calc = qCalcQuickQuote(item.slicerData, {
+    printer:  item.printer,
+    filament: item.filament,
+    quantity: item.quantity
+  });
+  renderQuickQuote();
+}
+
+function renderQuickQuote() {
+  const container = document.getElementById('qq-items');
+  const printers  = qState.settings.printers  || [];
+  const materials = qState.settings.materials  || [];
+
+  container.innerHTML = qqItems.map((item, idx) => {
+    const c = item.calc;
+    const printerOpts = printers.map(p =>
+      '<option value="' + p.name + '"' + (p.name === item.printer ? ' selected' : '') + '>' + p.name + '</option>'
+    ).join('');
+    const matOpts = materials.map(m =>
+      '<option value="' + m.name + '"' + (m.name === item.filament ? ' selected' : '') + '>' + m.name + '</option>'
+    ).join('');
+
+    const bd = [
+      ['Print Time',    ((item.slicerData.base_time_minutes||0)).toFixed(0) + ' min', ''],
+      ['Weight',        (item.slicerData.base_weight_g||0).toFixed(1) + ' g', ''],
+      ['Material Cost', qCur(c.filamentCost), ''],
+      ['Machine Cost',  qCur(c.machinePP), ''],
+      ['Failure Adj',   (c.fail * 100).toFixed(0) + '%', 'yellow'],
+      ['Cost/pc',       qCur(c.costPP), 'accent'],
+      ['Markup',        c.markup.toFixed(2) + 'x', ''],
+      ['Quote Price',   qCur(c.suggested), 'green'],
+      ['Margin',        (c.margin * 100).toFixed(0) + '%', c.margin > 0.3 ? 'green' : 'yellow'],
+      ['Profit',        qCur(c.totalProfit), 'green']
+    ];
+
+    const breakdownHTML = bd.map(([label, val, cls]) =>
+      '<div class="qq-breakdown-row"><span class="qq-breakdown-label">' + label +
+      '</span><span class="qq-breakdown-value' + (cls ? ' ' + cls : '') + '">' + val + '</span></div>'
+    ).join('');
+
+    return '<div class="qq-item-card">' +
+      '<div class="qq-item-header"><span class="qq-item-filename">' + (item.slicerData.filename||'unknown') + '</span></div>' +
+      '<div class="qq-item-controls">' +
+        '<div><label>Printer</label><select onchange="qqUpdateItem(' + idx + ',\'printer\',this.value)">' + printerOpts + '</select></div>' +
+        '<div><label>Filament</label><select onchange="qqUpdateItem(' + idx + ',\'filament\',this.value)">' + matOpts + '</select></div>' +
+        '<div><label>Qty</label><input type="number" min="1" value="' + item.quantity + '" onchange="qqUpdateItem(' + idx + ',\'quantity\',this.value)"></div>' +
+      '</div>' +
+      '<div class="qq-breakdown">' + breakdownHTML + '</div>' +
+    '</div>';
+  }).join('');
+
+  // Totals
+  const totalsEl = document.getElementById('qq-totals');
+  if (qqItems.length > 0) {
+    let totalCost = 0, totalPrice = 0, totalProfit = 0;
+    qqItems.forEach(item => {
+      totalCost   += item.calc.costTotal;
+      totalPrice  += item.calc.suggested;
+      totalProfit += item.calc.totalProfit;
+    });
+    const avgMargin = totalPrice > 0 ? ((totalPrice - totalCost) / totalPrice) : 0;
+    totalsEl.innerHTML =
+      '<div class="qq-total-item"><span class="qq-total-label">Total Cost</span><span class="qq-total-value blue">' + qCur(totalCost) + '</span></div>' +
+      '<div class="qq-total-item"><span class="qq-total-label">Total Quote</span><span class="qq-total-value">' + qCur(totalPrice) + '</span></div>' +
+      '<div class="qq-total-item"><span class="qq-total-label">Total Profit</span><span class="qq-total-value">' + qCur(totalProfit) + '</span></div>' +
+      '<div class="qq-total-item"><span class="qq-total-label">Avg Margin</span><span class="qq-total-value">' + (avgMargin * 100).toFixed(0) + '%</span></div>';
+    totalsEl.style.display = 'flex';
+  } else {
+    totalsEl.style.display = 'none';
+  }
 }
 </script>
 </body>
