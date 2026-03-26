@@ -2244,6 +2244,26 @@ let sizeMode    = 'scale';
 let supportMode = 'none';
 let selectedFile = null;
 
+// ── Quick Quote Bridge (Task 7) ────────────────────────────────────────
+let _slicerResultsForQuote = [];
+
+function extractSlicerBaseline(d) {
+  const timeMins = parseTimeToMins(d.time || '0');
+  return {
+    filename:         d.filename || 'unknown',
+    base_weight_g:    d.weight_g || 0,
+    base_time_minutes: timeMins,
+    job_id:           d.job_id || null
+  };
+}
+
+async function sendToQuickQuote() {
+  if (_slicerResultsForQuote.length === 0) return;
+  await loadQuotingState();
+  openQuickQuote(_slicerResultsForQuote);
+}
+// ── End Quick Quote Bridge ─────────────────────────────────────────────
+
 async function init() {
   try {
     const [printersRes] = await Promise.all([fetch('/api/printers'), loadPresetsList()]);
@@ -2944,6 +2964,23 @@ function showBatchResults() {
     .map(item => `<div class="warn-row" style="margin-bottom:0.4rem">⚠ <strong>${esc(item.file.name)}:</strong> ${esc(item.result.overflow_warning)}</div>`);
   document.getElementById('batch-warnings').innerHTML = warnings.join('');
   document.getElementById('batch-results').style.display = 'block';
+
+  // "Send All to Quote" button (Task 7)
+  let batchSendBtn = document.getElementById('send-all-to-quote');
+  if (!batchSendBtn) {
+    batchSendBtn = document.createElement('button');
+    batchSendBtn.id = 'send-all-to-quote';
+    batchSendBtn.className = 'send-to-quote-btn';
+    batchSendBtn.style.marginTop = '0.75rem';
+    batchSendBtn.textContent = 'Send All to Quote \u2192';
+    batchSendBtn.onclick = function() {
+      _slicerResultsForQuote = fileQueue
+        .filter(item => item.result && !item.result.error)
+        .map(item => extractSlicerBaseline(item.result));
+      sendToQuickQuote();
+    };
+    document.getElementById('batch-results').appendChild(batchSendBtn);
+  }
 }
 
 let _modalQuote = null;
@@ -3154,6 +3191,21 @@ function showResults(d) {
   window._lastQuote = d;
   const dlGcode = document.getElementById('dl-gcode-btn');
   if (dlGcode) dlGcode.href = d.job_id ? `/api/export_gcode?job_id=${d.job_id}` : '/api/export_gcode';
+
+  // "Send to Quote" button (Task 7)
+  let sendBtn = document.getElementById('send-to-quote-single');
+  if (!sendBtn) {
+    sendBtn = document.createElement('button');
+    sendBtn.id = 'send-to-quote-single';
+    sendBtn.className = 'send-to-quote-btn';
+    sendBtn.textContent = 'Send to Quote \u2192';
+    sendBtn.onclick = function() {
+      _slicerResultsForQuote = [extractSlicerBaseline(d)];
+      sendToQuickQuote();
+    };
+    const dlParent = dlGcode ? dlGcode.parentElement : document.getElementById('results');
+    if (dlParent) dlParent.appendChild(sendBtn);
+  }
 }
 
 function showError(msg) {
