@@ -394,6 +394,151 @@ def _translate_to_origin(mesh):
     mesh.apply_translation(-mesh.bounds[0])
 
 
+def analyze_complexity(piece_paths):
+    """
+    Analyze oriented/split mesh pieces and return a complexity score (1-10)
+    with a detailed breakdown of contributing factors.
+    """
+    try:
+        import trimesh as tm
+        import numpy as np
+    except ImportError:
+        return None, {}
+
+    total_faces = 0
+    total_sa = 0.0
+    total_vol = 0.0
+    total_overhang_area = 0.0
+    all_watertight = True
+    body_count = 0
+    min_wall = float('inf')
+    max_aspect = 0.0
+
+    for p in piece_paths:
+        try:
+            mesh = tm.load(p, force="mesh")
+            if mesh.is_empty or len(mesh.faces) == 0:
+                continue
+
+            total_faces += len(mesh.faces)
+            total_sa += float(mesh.area)
+            if mesh.is_watertight:
+                total_vol += abs(float(mesh.volume))
+            else:
+                all_watertight = False
+
+            # Count bodies
+            try:
+                body_count += len(mesh.split(only_watertight=False))
+            except Exception:
+                body_count += 1
+
+            # Thin features
+            exts = mesh.extents
+            mn = float(exts.min())
+            mx = float(exts.max())
+            if mn < min_wall:
+                min_wall = mn
+            if mn > 0:
+                ratio = mx / mn
+                if ratio > max_aspect:
+                    max_aspect = ratio
+
+            # Overhang: faces with normal Z < -sin(45°)
+            normals = mesh.face_normals
+            overhang_mask = normals[:, 2] < -0.707
+            total_overhang_area += float(mesh.area_faces[overhang_mask].sum())
+
+        except Exception:
+            continue
+
+    if total_sa == 0:
+        return None, {}
+
+    # ── Score each factor by print failure risk ──
+    # Ranked by what actually causes prints to fail:
+    #   1. Overhangs (detach, spaghetti, surface defects)   max +4.0
+    #   2. Thin walls / small features (warp, snap, clog)   max +2.0
+    #   3. Aspect ratio (tip-over, layer shift)             max +1.5
+    #   4. Not watertight (slicer holes, missing walls)     max +1.0
+    #   5. SA:Vol ratio (intricate = more failure surface)  max +1.0
+    #   6. Multiple bodies (adhesion, alignment)            max +0.5
+    #   7. Face count (slicer strain, minor risk)           max +0.5
+    # Total possible: 1 base + 10.5 = capped at 10
+    breakdown = {}
+    cx = 1.0
+
+    # 1. OVERHANGS — #1 failure cause (max +4.0)
+    oh_pct = (total_overhang_area / total_sa * 100) if total_sa > 0 else 0
+    oh_score = 0.0
+    if oh_pct > 40:   oh_score = 4.0
+    elif oh_pct > 25: oh_score = 3.0
+    elif oh_pct > 15: oh_score = 2.0
+    elif oh_pct > 8:  oh_score = 1.0
+    elif oh_pct > 3:  oh_score = 0.5
+    cx += oh_score
+    breakdown['overhangs'] = {'value': round(oh_pct, 1), 'score': oh_score,
+                              'label': f'{oh_pct:.0f}% overhang area'}
+
+    # 2. THIN WALLS — warp, snap mid-print, nozzle clogs (max +2.0)
+    tw_score = 0.0
+    if min_wall < 0.6:   tw_score = 2.0
+    elif min_wall < 1.0: tw_score = 1.5
+    elif min_wall < 1.5: tw_score = 1.0
+    elif min_wall < 2.5: tw_score = 0.5
+    cx += tw_score
+    breakdown['thin_walls'] = {'value': round(min_wall, 2) if min_wall < float('inf') else None,
+                               'score': tw_score,
+                               'label': f'Min wall {min_wall:.1f} mm' if min_wall < float('inf') else 'N/A'}
+
+    # 3. ASPECT RATIO — tall/narrow tips over, layer shift (max +1.5)
+    ar_score = 0.0
+    if max_aspect > 20:   ar_score = 1.5
+    elif max_aspect > 12: ar_score = 1.0
+    elif max_aspect > 6:  ar_score = 0.5
+    cx += ar_score
+    breakdown['aspect_ratio'] = {'value': round(max_aspect, 1), 'score': ar_score,
+                                 'label': f'{max_aspect:.0f}:1 aspect ratio'}
+
+    # 4. WATERTIGHT — slicer misinterprets open mesh (max +1.0)
+    wt_score = 0.0 if all_watertight else 1.0
+    cx += wt_score
+    breakdown['watertight'] = {'value': all_watertight, 'score': wt_score,
+                               'label': 'Watertight' if all_watertight else 'Not watertight (open mesh)'}
+
+    # 5. SA:VOL RATIO — intricate geometry = more failure surface (max +1.0)
+    sv_score = 0.0
+    sa_v_ratio = 0.0
+    if total_vol > 0:
+        sa_v_ratio = total_sa / (total_vol ** (2.0 / 3.0))
+        if sa_v_ratio > 25:   sv_score = 1.0
+        elif sa_v_ratio > 15: sv_score = 0.7
+        elif sa_v_ratio > 10: sv_score = 0.4
+    cx += sv_score
+    breakdown['surface_volume'] = {'value': round(sa_v_ratio, 1), 'score': round(sv_score, 1),
+                                   'label': f'SA:Vol ratio {sa_v_ratio:.1f}'}
+
+    # 6. MULTIPLE BODIES — adhesion risk between parts (max +0.5)
+    bd_score = 0.0
+    if body_count > 4:  bd_score = 0.5
+    elif body_count > 1: bd_score = 0.3
+    cx += bd_score
+    breakdown['bodies'] = {'value': body_count, 'score': round(bd_score, 1),
+                           'label': f'{body_count} {"body" if body_count == 1 else "bodies"}'}
+
+    # 7. FACE COUNT — slicer strain, minor (max +0.5)
+    fc_score = 0.0
+    if total_faces > 1_000_000:   fc_score = 0.5
+    elif total_faces > 500_000:   fc_score = 0.3
+    elif total_faces > 100_000:   fc_score = 0.1
+    cx += fc_score
+    breakdown['faces'] = {'value': total_faces, 'score': round(fc_score, 1),
+                          'label': f'{total_faces:,} faces'}
+
+    final = max(1, min(10, round(cx)))
+    return final, breakdown
+
+
 def split_if_needed(stl_path, build_vol, tmpdir, do_orient=False):
     """
     Split model into pieces that fit the build volume.
@@ -796,6 +941,13 @@ def api_presets_delete(name):
     return jsonify({"ok": True})
 
 
+@app.route("/api/logo.png")
+def api_logo():
+    logo_path = os.path.join(DATA_DIR, "logo.png")
+    if os.path.exists(logo_path):
+        return send_file(logo_path, mimetype="image/png")
+    return "", 404
+
 @app.route("/api/debug_log", methods=["GET"])
 def api_debug_log_get():
     return jsonify(list(reversed(_error_log)))
@@ -1081,6 +1233,17 @@ def api_quote():
         else:
             _job_export["resolved_config"] = None
 
+        # ── Complexity analysis (post-orient/split) ─────────────────────────
+        _emit(pid, "Analyzing complexity", "running", "")
+        try:
+            piece_file_paths = [p for p, _ in pieces]
+            auto_complexity, complexity_breakdown = analyze_complexity(piece_file_paths)
+        except Exception as e:
+            _log_error("complexity_analysis", e)
+            auto_complexity, complexity_breakdown = None, {}
+        _emit(pid, "Analyzing complexity", "done",
+              f"Score: {auto_complexity}/10" if auto_complexity else "skipped")
+
         # ── Slice each piece ──────────────────────────────────────────────────
 
         piece_results = []
@@ -1235,6 +1398,8 @@ def api_quote():
         "qty_subtotal":   round(qty_subtotal, 2) if qty_subtotal else None,
         "cost_per_kg":    float(cost_per_kg)  if cost_per_kg  else None,
         "hourly_rate":    float(hourly_rate)  if hourly_rate  else None,
+        "complexity":       auto_complexity,
+        "complexity_breakdown": complexity_breakdown,
         "errors":           errors_out,
         "overflow_warning": overflow_warning,
         "farm_size":        farm_size,
@@ -1495,6 +1660,12 @@ HTML = """<!DOCTYPE html>
   .applied-tag { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 5px; letter-spacing: 0.04em; }
   .tag-orient { background: rgba(255,169,77,.1); color: var(--warn); border: 1px solid rgba(255,169,77,.25); }
   .tag-split  { background: rgba(108,99,255,.1); color: var(--accent); border: 1px solid rgba(108,99,255,.25); }
+  .tag-complexity { background: rgba(245,158,11,.1); color: #f59e0b; border: 1px solid rgba(245,158,11,.25); }
+  #complexity-breakdown { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; font-size: 0.78rem; }
+  .cx-header { font-weight: 700; color: #fff; margin-bottom: 0.5rem; font-size: 0.82rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  .cx-row { display: flex; justify-content: space-between; padding: 0.2rem 0; color: var(--text); }
+  .cx-label { color: var(--muted); }
+  .cx-base { color: var(--muted); font-size: 0.72rem; margin-top: 0.3rem; padding-top: 0.3rem; border-top: 1px solid var(--border); }
   /* Stat grid */
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
   .stat-box { background: var(--input-bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1rem; }
@@ -2095,6 +2266,30 @@ HTML = """<!DOCTYPE html>
   #quoting-phase .q-cost-row-value.blue { color: var(--q-accent2); }
   #quoting-phase .q-cost-row-value.orange { color: var(--q-orange); }
   #quoting-phase .q-cost-row-value.yellow { color: var(--q-yellow); }
+  /* Part tabs */
+  .q-part-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--q-border); margin-bottom: 0; overflow-x: auto; }
+  .q-part-tab { padding: 8px 16px; font-size: 12px; font-weight: 500; color: var(--q-text2); cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; white-space: nowrap; display: flex; align-items: center; gap: 6px; font-family: 'DM Sans', sans-serif; background: none; transition: all .15s; }
+  .q-part-tab:hover { color: var(--q-text); background: var(--q-bg2); }
+  .q-part-tab.active { color: var(--q-accent); background: var(--q-bg2); border-color: var(--q-border); border-bottom: 2px solid var(--q-bg2); margin-bottom: -2px; font-weight: 600; }
+  .q-part-tab .q-tab-close { font-size: 10px; color: var(--q-text3); cursor: pointer; padding: 2px 4px; border-radius: 3px; line-height: 1; }
+  .q-part-tab .q-tab-close:hover { color: var(--q-danger); background: rgba(255,107,107,.1); }
+  .q-part-tab-add { color: var(--q-text3); font-size: 11px; padding: 8px 12px; cursor: pointer; background: none; border: none; font-family: 'DM Sans', sans-serif; }
+  .q-part-tab-add:hover { color: var(--q-accent); }
+  .q-part-content { background: var(--q-bg2); border: 1px solid var(--q-border); border-top: none; border-radius: 0 0 var(--q-rad2) var(--q-rad2); padding: 16px; }
+  /* Expandable quote log rows */
+  .q-log-expand { cursor: pointer; color: var(--q-text3); font-size: 11px; padding: 2px 6px; border-radius: 3px; background: none; border: none; transition: transform .15s; }
+  .q-log-expand.open { transform: rotate(90deg); }
+  .q-log-expand:hover { color: var(--q-accent); }
+  .q-log-sub-row td { background: var(--q-bg3); font-size: 11px; color: var(--q-text2); padding: 4px 12px; border-bottom: 1px solid var(--q-border); }
+  .q-log-sub-row td:first-child { padding-left: 32px; }
+  .q-log-parts-badge { font-size: 10px; background: rgba(56,139,253,.1); color: var(--q-accent); padding: 2px 6px; border-radius: 3px; margin-left: 4px; }
+  /* Per-part sidebar breakdown */
+  .q-part-breakdown { border: 1px solid var(--q-border); border-radius: var(--q-rad2); overflow: hidden; margin-bottom: 8px; }
+  .q-part-breakdown-header { padding: 8px 12px; background: var(--q-bg3); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; }
+  .q-part-breakdown-header:hover { background: var(--q-bg2); }
+  .q-part-breakdown-body { display: none; }
+  .q-part-breakdown-body.open { display: block; }
+  .q-part-breakdown .q-cost-row { padding: 4px 12px; font-size: 11px; }
   #quoting-phase .q-cost-row.total { background: var(--q-bg3); font-weight: 600; }
   #quoting-phase .q-cost-row.highlight { padding: 8px 16px; }
 
@@ -2253,7 +2448,7 @@ HTML = """<!DOCTYPE html>
 
   .qq-actions {
     display: flex; gap: 10px; margin-top: 20px;
-    justify-content: flex-end;
+    justify-content: flex-end; flex-wrap: wrap; align-items: center;
   }
   .qq-actions button {
     padding: 8px 18px; border-radius: 6px;
@@ -2262,12 +2457,108 @@ HTML = """<!DOCTYPE html>
     font-family: 'DM Sans', sans-serif;
     transition: all .15s;
   }
-  .qq-btn-log { background: #196c2e; color: #3fb950; border-color: #238636; }
-  .qq-btn-log:hover { background: #238636; color: #fff; }
+  .qq-btn-cancel { background: none; color: #8b949e; border-color: #484f58; margin-right: auto; }
+  .qq-btn-cancel:hover { background: #21262d; color: #e6edf3; }
+  .qq-btn-pdf { background: #0c2d6b; color: #388bfd; border-color: #1a4fa0; font-size: 12px; padding: 6px 14px; }
+  .qq-btn-pdf:hover { background: #1a4fa0; color: #fff; }
   .qq-btn-full { background: #1a6fde; color: #fff; border-color: #1a6fde; }
   .qq-btn-full:hover { background: #388bfd; }
-  .qq-btn-cancel { background: none; color: #8b949e; border-color: #484f58; }
-  .qq-btn-cancel:hover { background: #21262d; color: #e6edf3; }
+  .qq-btn-log { background: #196c2e; color: #3fb950; border-color: #238636; }
+  .qq-btn-log:hover { background: #238636; color: #fff; }
+
+  /* ── Quick Quote PDF Styles ── */
+  .qq-pdf { font-family: 'DM Sans', sans-serif; color: #111827; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .qq-pdf * { box-sizing: border-box; }
+  .qq-pdf-page { width: 210mm; margin: 0 auto; padding: 32px 40px 60px; position: relative; page-break-after: always; display: flex; flex-direction: column; }
+  .qq-pdf-page:last-child { page-break-after: auto; }
+  .qq-pdf-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid #111827; padding-bottom: 16px; margin-bottom: 20px; }
+  .qq-pdf-company { font-size: 24px; font-weight: 700; color: #111827; letter-spacing: -0.3px; }
+  .qq-pdf-company-sub { font-size: 11px; color: #6b7280; margin-top: 3px; }
+  .qq-pdf-contact { text-align: right; font-size: 10.5px; color: #374151; line-height: 1.7; }
+  .qq-pdf-title { font-size: 17px; font-weight: 700; color: #111827; margin-bottom: 2px; }
+  .qq-pdf-subtitle { font-size: 11px; color: #6b7280; margin-bottom: 10px; font-style: italic; }
+  .qq-pdf-meta { font-size: 11px; color: #6b7280; margin-bottom: 20px; }
+  .qq-pdf-meta span { margin-right: 20px; }
+  .qq-pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 11.5px; }
+  .qq-pdf-table th { background: #f3f4f6; text-align: left; padding: 9px 12px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #374151; border-bottom: 2px solid #d1d5db; }
+  .qq-pdf-table td { padding: 9px 12px; border-bottom: 1px solid #e5e7eb; color: #111827; }
+  .qq-pdf-table tr:last-child td { border-bottom: 2px solid #d1d5db; }
+  .qq-pdf-table .right { text-align: right; }
+  .qq-pdf-total-row { display: flex; justify-content: flex-end; align-items: baseline; gap: 16px; padding: 14px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; margin-bottom: 16px; }
+  .qq-pdf-total-row .qq-pdf-total-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; color: #374151; }
+  .qq-pdf-total-row .qq-pdf-total-amount { font-size: 18px; font-weight: 700; color: #059669; }
+  .qq-pdf-section { font-size: 12px; font-weight: 700; color: #111827; margin: 18px 0 8px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }
+  .qq-pdf-tiers { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 18px; }
+  .qq-pdf-tiers th { background: #f9fafb; padding: 7px 12px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+  .qq-pdf-tiers td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+  .qq-pdf-tiers .active-tier { background: #f0fdf4; font-weight: 600; color: #059669; }
+  .qq-pdf-tiers .active-tier td { border-bottom: 1px solid #bbf7d0; }
+  .qq-pdf-tier-label { display: inline-block; background: #059669; color: #fff; font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: .5px; vertical-align: middle; margin-left: 6px; }
+  .qq-pdf-tier-savings { font-size: 12px; font-weight: 700; color: #059669; }
+  .qq-pdf-services { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 28px; margin-bottom: 16px; padding: 6px 0; }
+  .qq-pdf-service { padding: 4px 0 4px 18px; position: relative; }
+  .qq-pdf-service::before { content: '\\25B8'; position: absolute; left: 0; color: #3b82f6; font-size: 11px; top: 4px; }
+  .qq-pdf-service-name { font-size: 11.5px; font-weight: 600; color: #111827; }
+  .qq-pdf-service-desc { font-size: 9.5px; color: #6b7280; font-style: italic; margin-top: 1px; }
+  .qq-pdf-validity { font-size: 10px; color: #9ca3af; text-align: center; margin-top: auto; padding-top: 12px; font-style: italic; }
+  .qq-pdf-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e5e7eb; padding-top: 10px; margin-top: 10px; font-size: 10px; color: #9ca3af; }
+  .qq-pdf-footer-contact { font-size: 9.5px; color: #6b7280; }
+  .qq-pdf-page-num { font-size: 9px; color: #9ca3af; text-align: center; margin-top: 6px; }
+  .qq-pdf-logo { height: 36px; width: auto; }
+  .qq-pdf-header-left { display: flex; align-items: center; gap: 12px; }
+  .qq-pdf-next-page { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; padding: 10px 16px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; font-size: 11.5px; color: #c2410c; font-weight: 600; }
+  .qq-pdf-next-page svg { flex-shrink: 0; }
+  /* Material Guide page */
+  .qq-pdf-mat-header { display: flex; align-items: center; gap: 14px; border-bottom: 2.5px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 14px; }
+  .qq-pdf-mat-title { font-size: 20px; font-weight: 700; color: #111827; }
+  .qq-pdf-mat-sub { font-size: 11px; color: #6b7280; margin-top: 3px; }
+  .qq-pdf-mat-intro { font-size: 11px; color: #374151; margin: 0 0 16px; line-height: 1.6; background: #f9fafb; border-left: 3px solid #3b82f6; padding: 10px 14px; border-radius: 0 4px 4px 0; }
+  .qq-pdf-mat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .qq-pdf-mat-card { border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; break-inside: avoid; position: relative; }
+  .qq-pdf-mat-card.recommended { border-color: #3b82f6; border-width: 2px; }
+  .qq-pdf-mat-badge { position: absolute; top: 0; right: 0; background: #3b82f6; color: #fff; font-size: 8px; font-weight: 700; padding: 3px 8px; border-radius: 0 4px 0 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .qq-pdf-mat-card-head { background: #f3f4f6; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; }
+  .qq-pdf-mat-name { font-size: 13px; font-weight: 700; color: #111827; display: block; }
+  .qq-pdf-mat-tagline { font-size: 10px; color: #6b7280; display: block; margin-top: 2px; }
+  .qq-pdf-mat-body { padding: 8px 12px; }
+  .qq-pdf-mat-props { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; margin-bottom: 8px; }
+  .qq-pdf-mat-prop { display: flex; align-items: center; justify-content: space-between; }
+  .qq-pdf-mat-prop-label { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .3px; }
+  .qq-pdf-mat-dots { font-size: 10px; letter-spacing: 1.5px; }
+  .qq-pdf-mat-dots .on { color: #2563eb; }
+  .qq-pdf-mat-dots .off { color: #d1d5db; }
+  .qq-pdf-mat-best-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; color: #374151; margin-bottom: 4px; }
+  .qq-pdf-mat-best { margin: 0; padding-left: 16px; }
+  .qq-pdf-mat-best li { font-size: 10px; color: #374151; line-height: 1.6; }
+  .qq-pdf-mat-note { font-size: 9.5px; color: #6b7280; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 10px; margin-top: 8px; line-height: 1.5; }
+  .qq-pdf-mat-cta { background: #f0f6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 12px 16px; margin-top: 12px; text-align: center; }
+  .qq-pdf-mat-cta-text { font-size: 11.5px; font-weight: 600; color: #1d4ed8; margin-bottom: 4px; }
+  .qq-pdf-mat-cta-contact { font-size: 10px; color: #374151; }
+
+  @media print {
+    @page { margin: 10mm; size: A4; }
+    body > *:not(#qq-pdf-frame) { display: none !important; }
+    #qq-pdf-frame { display: block !important; position: static !important; }
+    .qq-pdf { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .qq-pdf-page { width: auto; padding: 0; margin: 0; }
+    .qq-pdf-mat-card-head { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-mat-intro { background: #f9fafb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-mat-dots .on { color: #2563eb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-mat-dots .off { color: #d1d5db !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-table th { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-tiers th { background: #f9fafb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-tiers .active-tier { background: #eff6ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-service::before { color: #3b82f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-next-page { background: #fff7ed !important; border-color: #fed7aa !important; color: #c2410c !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-total-row { background: #f0fdf4 !important; border-color: #bbf7d0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-total-row .qq-pdf-total-amount { color: #059669 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-tiers .active-tier { background: #f0fdf4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-tier-label { background: #059669 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-mat-card.recommended { border-color: #3b82f6 !important; }
+    .qq-pdf-mat-badge { background: #3b82f6 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-mat-cta { background: #f0f6ff !important; border-color: #bfdbfe !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .qq-pdf-total-row { border-bottom-color: #111827 !important; }
+  }
 
   /* Send to Quote button in slicer results */
   .send-to-quote-btn {
@@ -2278,6 +2569,14 @@ HTML = """<!DOCTYPE html>
     margin-top: 0.5rem;
   }
   .send-to-quote-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(56,139,253,.3); }
+  .slicer-pdf-btns { display: inline-flex; gap: 0.5rem; margin-left: 0.5rem; vertical-align: middle; }
+  .slicer-pdf-btn {
+    background: #0c2d6b; color: #388bfd; border: 1px solid #1a4fa0; border-radius: 8px;
+    padding: 0.45rem 0.85rem; font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all .2s; white-space: nowrap;
+  }
+  .slicer-pdf-btn:hover { background: #1a4fa0; color: #fff; }
+  .slicer-action-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
 </style>
 </head>
 <body>
@@ -2502,6 +2801,7 @@ HTML = """<!DOCTYPE html>
 
         <div id="farm-row" class="qty-row" style="display:none;border-color:rgba(108,99,255,.2);background:rgba(108,99,255,.04);margin-bottom:0.75rem"></div>
         <div id="applied-row" class="applied-row"></div>
+        <div id="complexity-breakdown" style="display:none"></div>
         <div id="warn-row" class="warn-row" style="display:none"></div>
 
         <div class="stat-grid">
@@ -2555,13 +2855,17 @@ let selectedFile = null;
 // ── Quick Quote Bridge (Task 7) ────────────────────────────────────────
 let _slicerResultsForQuote = [];
 
-function extractSlicerBaseline(d) {
+function extractSlicerBaseline(d, sizeCheck) {
   const timeMins = parseTimeToMins(d.time || '0');
+  const qty = d.quantity || parseInt(document.getElementById('quantity').value) || 1;
   return {
     filename:         d.filename || 'unknown',
     base_weight_g:    d.weight_g || 0,
     base_time_minutes: timeMins,
-    job_id:           d.job_id || null
+    job_id:           d.job_id || null,
+    quantity:         qty,
+    complexity:       d.complexity || null,
+    complexity_breakdown: d.complexity_breakdown || null
   };
 }
 
@@ -3275,15 +3579,28 @@ function showBatchResults() {
     batchSendBtn = document.createElement('button');
     batchSendBtn.id = 'send-all-to-quote';
     batchSendBtn.className = 'send-to-quote-btn';
-    batchSendBtn.style.marginTop = '0.75rem';
+    batchSendBtn.style.marginTop = '0';
     batchSendBtn.textContent = 'Send All to Quote \u2192';
     batchSendBtn.onclick = function() {
       _slicerResultsForQuote = fileQueue
         .filter(item => item.result && !item.result.error)
-        .map(item => extractSlicerBaseline(item.result));
+        .map(item => extractSlicerBaseline(item.result, item.sizeCheck));
       sendToQuickQuote();
     };
-    document.getElementById('batch-results').appendChild(batchSendBtn);
+    var bBtnQuick = document.createElement('button');
+    bBtnQuick.className = 'slicer-pdf-btn';
+    bBtnQuick.innerHTML = '&#128196; Quick Quote PDF';
+    bBtnQuick.onclick = function() {
+      _slicerResultsForQuote = fileQueue
+        .filter(function(item) { return item.result && !item.result.error; })
+        .map(function(item) { return extractSlicerBaseline(item.result, item.sizeCheck); });
+      slicerQuickPDF();
+    };
+    var batchActionRow = document.createElement('div');
+    batchActionRow.className = 'slicer-action-row';
+    batchActionRow.appendChild(batchSendBtn);
+    batchActionRow.appendChild(bBtnQuick);
+    document.getElementById('batch-results').appendChild(batchActionRow);
   }
 }
 
@@ -3355,6 +3672,11 @@ function copyModalQuote() {
   });
 }
 
+function toggleComplexityBreakdown() {
+  var el = document.getElementById('complexity-breakdown');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 function showResults(d) {
   document.getElementById('placeholder').style.display  = 'none';
   document.getElementById('health-panel').style.display = 'none';
@@ -3380,6 +3702,25 @@ function showResults(d) {
   }
   if (d.split_count > 1) {
     appliedRow.innerHTML += `<span class="applied-tag tag-split">✂ split into ${d.split_count} pieces</span>`;
+  }
+  if (d.complexity) {
+    appliedRow.innerHTML += `<span class="applied-tag tag-complexity" title="Click for details" onclick="toggleComplexityBreakdown()" style="cursor:pointer">⚙ complexity ${d.complexity}/10</span>`;
+  }
+
+  // Complexity breakdown panel
+  const cxPanel = document.getElementById('complexity-breakdown');
+  if (d.complexity_breakdown && Object.keys(d.complexity_breakdown).length > 0) {
+    const bd = d.complexity_breakdown;
+    const rows = Object.keys(bd).map(k => {
+      const f = bd[k];
+      const bar = f.score > 0 ? '<span style="color:#f59e0b;font-weight:600">+' + f.score.toFixed(1) + '</span>' : '<span style="color:#6b7280">+0</span>';
+      return '<div class="cx-row"><span class="cx-label">' + f.label + '</span>' + bar + '</div>';
+    }).join('');
+    cxPanel.innerHTML = '<div class="cx-header">Complexity Breakdown <span style="float:right;font-weight:700;color:#f59e0b">' + d.complexity + '/10</span></div>' + rows + '<div class="cx-base">Base score: 1.0</div>';
+    cxPanel.style.display = 'none';
+  } else {
+    cxPanel.innerHTML = '';
+    cxPanel.style.display = 'none';
   }
 
   // Warnings (overflow, partial errors)
@@ -3496,19 +3837,37 @@ function showResults(d) {
   const dlGcode = document.getElementById('dl-gcode-btn');
   if (dlGcode) dlGcode.href = d.job_id ? `/api/export_gcode?job_id=${d.job_id}` : '/api/export_gcode';
 
-  // "Send to Quote" button (Task 7)
-  let sendBtn = document.getElementById('send-to-quote-single');
-  if (!sendBtn) {
-    sendBtn = document.createElement('button');
+  // Action row: Send to Quote + PDF buttons
+  let actionRow = document.getElementById('slicer-action-row');
+  if (!actionRow) {
+    actionRow = document.createElement('div');
+    actionRow.id = 'slicer-action-row';
+    actionRow.className = 'slicer-action-row';
+    // Send to Quote
+    var sendBtn = document.createElement('button');
     sendBtn.id = 'send-to-quote-single';
     sendBtn.className = 'send-to-quote-btn';
+    sendBtn.style.marginTop = '0';
     sendBtn.textContent = 'Send to Quote \u2192';
+    actionRow.appendChild(sendBtn);
+    // Quick Quote PDF
+    var btnQuick = document.createElement('button');
+    btnQuick.className = 'slicer-pdf-btn';
+    btnQuick.innerHTML = '&#128196; Quick Quote PDF';
+    actionRow.appendChild(btnQuick);
     const dlParent = dlGcode ? dlGcode.parentElement : document.getElementById('results');
-    if (dlParent) dlParent.appendChild(sendBtn);
+    if (dlParent) dlParent.appendChild(actionRow);
   }
-  sendBtn.onclick = function() {
-    _slicerResultsForQuote = [extractSlicerBaseline(d)];
+  // Wire up handlers (update each render in case data changed)
+  actionRow.querySelector('#send-to-quote-single').onclick = function() {
+    var sc = (fileQueue[0] && fileQueue[0].sizeCheck) || null;
+    _slicerResultsForQuote = [extractSlicerBaseline(d, sc)];
     sendToQuickQuote();
+  };
+  actionRow.querySelector('.slicer-pdf-btn').onclick = function() {
+    var sc = (fileQueue[0] && fileQueue[0].sizeCheck) || null;
+    _slicerResultsForQuote = [extractSlicerBaseline(window._lastQuote, sc)];
+    slicerQuickPDF();
   };
 }
 
@@ -3874,11 +4233,15 @@ setInterval(() => {
     </div>
     <div class="qq-actions">
       <button class="qq-btn-cancel" onclick="closeQuickQuote()">Cancel</button>
+      <button class="qq-btn-pdf" onclick="qqDownloadPDF()">&#128196; PDF</button>
       <button class="qq-btn-full" onclick="openFullQuoteForm()">Full Details &#8594;</button>
       <button class="qq-btn-log" onclick="logQuickQuote()">Log Quote</button>
     </div>
   </div>
 </div>
+
+<!-- Hidden PDF print frame -->
+<div id="qq-pdf-frame" style="display:none"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════
      QUOTING PHASE
@@ -3938,121 +4301,66 @@ setInterval(() => {
     <div id="qtab-quote" class="q-tab-content">
       <div class="q-flex-between q-mb-16">
         <div>
-          <h1 style="font-family:var(--q-font-head);font-size:22px;font-weight:800" id="q-page-title">New Quote</h1>
-          <p style="color:var(--q-text2);font-size:13px;margin-top:3px" id="q-page-sub">Fill in the job details to generate a quote</p>
+          <h1 style="font-family:var(--q-font-head);font-size:22px;font-weight:800" id="q-quote-title">New Quote</h1>
+          <p style="color:var(--q-text2);font-size:13px;margin-top:3px" id="q-quote-sub">Fill in the job details and the cost preview updates live.</p>
         </div>
         <div style="display:flex;gap:8px">
           <button class="q-btn q-btn-ghost" onclick="qClearForm()">&#8634; Clear</button>
-          <button class="q-btn q-btn-success q-btn-lg" onclick="qLogFullQuote()">&#10003; Log Quote</button>
+          <button class="q-btn q-btn-success q-btn-lg" onclick="qLogFullQuote()">&#10003; Save Quote</button>
         </div>
       </div>
-      <div id="q-alert-area"></div>
+      <div id="q-quote-alert"></div>
       <div class="q-quote-layout">
-        <!-- Left: form -->
-        <div class="q-card" style="gap:0;padding:24px">
-          <div class="q-form-section" style="margin-top:0;border-top:none;padding-top:0">Customer Details</div>
-          <div class="q-form-row q-form-row-3">
-            <div class="q-form-group"><label class="q-form-label">Customer Name</label><input class="q-form-input" id="qf-customer" placeholder="e.g. Acme Corp" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Project Title</label><input class="q-form-input" id="qf-project" placeholder="e.g. Drone Frame v2" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Description</label><input class="q-form-input" id="qf-description" placeholder="e.g. Fan Motor Mount" oninput="qUpdateQuoteCalc()"></div>
-          </div>
-          <div class="q-form-row q-form-row-4" style="margin-top:12px">
-            <div class="q-form-group"><label class="q-form-label">Date</label><input class="q-form-input" type="date" id="qf-date" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Job Status</label>
-              <select class="q-form-select" id="qf-status">
-                <option>Quoting</option><option>Accepted</option><option>In Progress</option><option>Complete</option><option>Declined</option>
-              </select>
+        <div>
+          <!-- Shared: Quote Details -->
+          <div class="q-card" style="margin-bottom:16px">
+            <div class="q-card-header">Quote Details</div>
+            <div style="padding:16px">
+              <div class="q-form-row q-form-row-2">
+                <div class="q-form-group"><label class="q-form-label">Customer</label><input class="q-form-input" id="qf-customer" type="text" list="qf-customer-list" placeholder="Customer name"><datalist id="qf-customer-list"></datalist></div>
+                <div class="q-form-group"><label class="q-form-label">Project</label><input class="q-form-input" id="qf-project" type="text"></div>
+              </div>
+              <div class="q-form-row q-form-row-2">
+                <div class="q-form-group"><label class="q-form-label">Description</label><input class="q-form-input" id="qf-description" type="text"></div>
+                <div class="q-form-group"><label class="q-form-label">Date</label><input class="q-form-input" id="qf-date" type="date"></div>
+              </div>
+              <div class="q-form-row q-form-row-3">
+                <div class="q-form-group"><label class="q-form-label">Status</label><select class="q-form-input" id="qf-status"><option>Quoting</option><option>Accepted</option><option>In Progress</option><option>Complete</option><option>Declined</option></select></div>
+                <div class="q-form-group"><label class="q-form-label">Rush</label><select class="q-form-input" id="qf-rush" onchange="qUpdateQuoteCalc()"><option value="1.0">1.0x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="1.75">1.75x</option><option value="2.0">2.0x</option></select></div>
+                <div class="q-form-group"><label class="q-form-label">Quote Override ($)</label><input class="q-form-input" id="qf-quoted" type="number" step="0.01" placeholder="Leave blank for auto" oninput="qUpdateQuoteCalc()"></div>
+              </div>
             </div>
-            <div class="q-form-group"><label class="q-form-label">Rush Multiplier</label>
-              <select class="q-form-select" id="qf-rush" onchange="qUpdateQuoteCalc()">
-                <option value="1.0">1.0x Standard</option><option value="1.25">1.25x Light Rush</option>
-                <option value="1.5">1.5x Rush</option><option value="1.75">1.75x Priority</option><option value="2.0">2.0x Urgent</option>
-              </select>
+          </div>
+          <!-- Part Tabs -->
+          <div id="q-part-tabs" class="q-part-tabs"></div>
+          <div id="q-part-content" class="q-part-content"></div>
+          <!-- Shared: Shipping & Notes -->
+          <div class="q-card" style="margin-top:16px">
+            <div class="q-card-header">Shipping &amp; Notes</div>
+            <div style="padding:16px">
+              <div class="q-form-row q-form-row-2">
+                <div class="q-form-group"><label class="q-form-label">Packaging ($)</label><input class="q-form-input" id="qf-ship-pack" type="number" step="0.01" value="0" oninput="qUpdateQuoteCalc()"></div>
+                <div class="q-form-group"><label class="q-form-label">Shipping ($)</label><input class="q-form-input" id="qf-ship-cost" type="number" step="0.01" value="0" oninput="qUpdateQuoteCalc()"></div>
+              </div>
+              <div class="q-form-group"><label class="q-form-label">Notes</label><textarea class="q-form-input" id="qf-notes" rows="3" style="resize:vertical"></textarea></div>
             </div>
-            <div class="q-form-group"><label class="q-form-label">Quantity</label><input class="q-form-input" type="number" id="qf-qty" value="1" min="1" oninput="qUpdateQuoteCalc()"></div>
-          </div>
-
-          <div class="q-form-section">Print Details</div>
-          <div class="q-form-row q-form-row-3">
-            <div class="q-form-group"><label class="q-form-label">Printer</label><select class="q-form-select" id="qf-printer" onchange="qUpdateQuoteCalc()"></select></div>
-            <div class="q-form-group"><label class="q-form-label">Filament</label><select class="q-form-select" id="qf-filament" onchange="qUpdateQuoteCalc()"></select></div>
-            <div class="q-form-group"><label class="q-form-label">Weight (g)</label><input class="q-form-input" type="number" id="qf-weight" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-          </div>
-          <div class="q-form-row q-form-row-3" style="margin-top:12px">
-            <div class="q-form-group"><label class="q-form-label">Print Time</label><input class="q-form-input" id="qf-printtime" placeholder="5:47 or 5.78" oninput="qUpdateQuoteCalc()"><span class="q-form-hint">hh:mm or decimal hours</span></div>
-            <div class="q-form-group"><label class="q-form-label">Complexity (1-10)</label>
-              <select class="q-form-select" id="qf-complexity" onchange="qUpdateQuoteCalc()">
-                <option value="1">1 - Very Simple</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
-                <option value="5">5 - Moderate</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
-                <option value="9">9</option><option value="10">10 - Very Complex</option>
-              </select>
-            </div>
-            <div class="q-form-group"><label class="q-form-label">Quoted Price (opt)</label><input class="q-form-input" type="number" id="qf-quoted" placeholder="Leave blank = suggested" min="0" step="0.01" oninput="qUpdateQuoteCalc()"><span class="q-form-hint">Overrides suggested price</span></div>
-          </div>
-
-          <div class="q-form-section">Secondary Material</div>
-          <div class="q-form-row q-form-row-2">
-            <div class="q-form-group"><label class="q-form-label">Support Filament</label><select class="q-form-select" id="qf-support-filament" onchange="qUpdateQuoteCalc()"><option value="">None</option></select></div>
-            <div class="q-form-group"><label class="q-form-label">Support Weight (g)</label><input class="q-form-input" type="number" id="qf-support-weight" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-          </div>
-
-          <div class="q-form-section">Labor</div>
-          <div class="q-form-row q-form-row-3">
-            <div class="q-form-group"><label class="q-form-label">Model Prep (min)</label><input class="q-form-input" type="number" id="qf-prep-model" value="0" min="0" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Slicing (min)</label><input class="q-form-input" type="number" id="qf-prep-slice" value="0" min="0" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Job Removal (min)</label><input class="q-form-input" type="number" id="qf-post-remove" value="2" min="0" oninput="qUpdateQuoteCalc()"></div>
-          </div>
-          <div class="q-form-row q-form-row-2" style="margin-top:12px">
-            <div class="q-form-group"><label class="q-form-label">Support Removal (min)</label><input class="q-form-input" type="number" id="qf-post-support" value="5" min="0" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Additional Post Work (min)</label><input class="q-form-input" type="number" id="qf-post-extra" value="0" min="0" oninput="qUpdateQuoteCalc()"></div>
-          </div>
-
-          <div class="q-form-section">Finishing Materials</div>
-          <div class="q-form-row q-form-row-4">
-            <div class="q-form-group"><label class="q-form-label">Sanding ($)</label><input class="q-form-input" type="number" id="qf-fin-sand" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Primer/Paint ($)</label><input class="q-form-input" type="number" id="qf-fin-paint" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Hardware Inserts ($)</label><input class="q-form-input" type="number" id="qf-fin-hardware" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Other Finishing ($)</label><input class="q-form-input" type="number" id="qf-fin-other" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-          </div>
-
-          <div class="q-form-section">Shipping &amp; Misc</div>
-          <div class="q-form-row q-form-row-3">
-            <div class="q-form-group"><label class="q-form-label">Packaging ($)</label><input class="q-form-input" type="number" id="qf-ship-pack" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Shipping ($)</label><input class="q-form-input" type="number" id="qf-ship-cost" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-            <div class="q-form-group"><label class="q-form-label">Consumables ($)</label><input class="q-form-input" type="number" id="qf-consumables" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
-          </div>
-
-          <div class="q-form-group" style="margin-top:16px">
-            <label class="q-form-label">Notes</label>
-            <textarea class="q-form-textarea" id="qf-notes" placeholder="Any additional notes..."></textarea>
           </div>
         </div>
-
-        <!-- Right: sidebar -->
+        <!-- Right Sidebar -->
         <div class="q-quote-sidebar">
+          <div id="q-part-breakdowns"></div>
           <div class="q-cost-preview">
-            <div class="q-cost-preview-header">Live Cost Breakdown</div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Filament</span><span class="q-cost-row-value" id="qp-filament">$0.00</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Electricity</span><span class="q-cost-row-value" id="qp-elec">$0.00</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Depreciation</span><span class="q-cost-row-value" id="qp-depr">$0.00</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Consumables</span><span class="q-cost-row-value" id="qp-consumables">$0.00</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Prep Labor</span><span class="q-cost-row-value" id="qp-prep">$0.00</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Post Labor</span><span class="q-cost-row-value" id="qp-post">$0.00</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Finishing</span><span class="q-cost-row-value" id="qp-fin">$0.00</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Shipping</span><span class="q-cost-row-value" id="qp-ship">$0.00</span></div>
-            <div class="q-cost-row" style="border-top:2px solid var(--q-border2)"><span class="q-cost-row-label" style="font-size:11px;text-transform:uppercase">Fail Rate</span><span class="q-cost-row-value yellow" id="qp-fail">0.0%</span></div>
-            <div class="q-cost-row total"><span class="q-cost-row-label">Cost / pc</span><span class="q-cost-row-value blue" id="qp-costpc">$0.00</span></div>
-            <div class="q-cost-row total"><span class="q-cost-row-label">Markup</span><span class="q-cost-row-value" id="qp-markup">2.40x</span></div>
-            <div class="q-cost-row highlight" style="background:#0d3320;border-top:2px solid var(--q-border2)"><span class="q-cost-row-label" style="color:var(--q-green);font-weight:700">Suggested</span><span class="q-cost-row-value green" id="qp-suggested" style="font-size:15px;font-weight:700">$0.00</span></div>
-            <div class="q-cost-row" style="background:#1a0a00"><span class="q-cost-row-label" style="color:var(--q-orange)">Quoted Price</span><span class="q-cost-row-value orange" id="qp-quoted" style="font-size:15px;font-weight:700">&mdash;</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Profit / pc</span><span class="q-cost-row-value green" id="qp-profitpc">$0.00</span></div>
-            <div class="q-cost-row"><span class="q-cost-row-label">Margin</span><span class="q-cost-row-value green" id="qp-margin">0.0%</span></div>
-            <div class="q-cost-row total"><span class="q-cost-row-label">Total Profit</span><span class="q-cost-row-value green" id="qp-totalprofit">$0.00</span></div>
+            <div class="q-cost-preview-header">Combined Total</div>
+            <div class="q-cost-row total"><span class="q-cost-row-label">Total Cost</span><span class="q-cost-row-value" id="qp-total-cost">$0.00</span></div>
+            <div class="q-cost-row total highlight" style="background:#0d3320"><span class="q-cost-row-label" style="color:var(--q-green);font-weight:700">Suggested Price</span><span class="q-cost-row-value green" id="qp-total-suggested" style="font-size:15px;font-weight:700">$0.00</span></div>
+            <div class="q-cost-row" style="background:#1a0a00"><span class="q-cost-row-label" style="color:var(--q-orange)">Quoted Price</span><span class="q-cost-row-value orange" id="qp-total-quoted" style="font-size:15px;font-weight:700">&mdash;</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Margin</span><span class="q-cost-row-value green" id="qp-total-margin">0%</span></div>
+            <div class="q-cost-row total"><span class="q-cost-row-label">Total Profit</span><span class="q-cost-row-value green" id="qp-total-profit">$0.00</span></div>
           </div>
-          <div class="q-card" style="padding:0;overflow:hidden">
+          <div class="q-cost-preview" style="margin-top:8px">
             <div class="q-cost-preview-header">Pricing Schedule</div>
-            <div class="q-table-wrap" style="border:none;border-radius:0">
-              <table><thead><tr><th>Qty</th><th class="q-td-right">Price/pc</th><th class="q-td-right">Total</th><th class="q-td-right">Margin</th></tr></thead>
+            <div style="overflow-x:auto">
+              <table class="q-edit-table" style="font-size:11px"><thead><tr><th>Qty</th><th>Price/pc</th><th>Total</th><th>Margin</th></tr></thead>
               <tbody id="qp-schedule-body"></tbody></table>
             </div>
           </div>
@@ -4070,7 +4378,7 @@ setInterval(() => {
       </div>
       <div class="q-log-toolbar">
         <input class="q-form-input q-log-search" id="q-log-search" placeholder="Search customer, description..." oninput="qRenderQuoteLog()">
-        <select class="q-form-select" id="q-log-filter-status" style="width:160px" onchange="qRenderQuoteLog()">
+        <select class="q-form-select" id="q-log-status" style="width:160px" onchange="qRenderQuoteLog()">
           <option value="">All Statuses</option>
           <option>Quoting</option><option>Accepted</option><option>In Progress</option><option>Complete</option><option>Declined</option>
         </select>
@@ -4163,6 +4471,9 @@ setInterval(() => {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
               <div class="q-form-group"><label class="q-form-label">Company Name</label><input class="q-form-input" id="qs-company" type="text"></div>
               <div class="q-form-group"><label class="q-form-label">Currency Symbol</label><input class="q-form-input" id="qs-currency" type="text" style="width:80px"></div>
+              <div class="q-form-group"><label class="q-form-label">Email</label><input class="q-form-input" id="qs-email" type="email" placeholder="quotes@example.com"></div>
+              <div class="q-form-group"><label class="q-form-label">Phone</label><input class="q-form-input" id="qs-phone" type="text" placeholder="(555) 123-4567"></div>
+              <div class="q-form-group"><label class="q-form-label">Website</label><input class="q-form-input" id="qs-website" type="text" placeholder="www.example.com"></div>
               <div class="q-form-group"><label class="q-form-label">Energy Cost ($/kWh)</label><input class="q-form-input" id="qs-energy" type="number" step="0.01"></div>
               <div class="q-form-group"><label class="q-form-label">Skilled Labor Rate ($/h)</label><input class="q-form-input" id="qs-skilled" type="number" step="0.01"></div>
               <div class="q-form-group"><label class="q-form-label">Post-Process Labor Rate ($/h)</label><input class="q-form-input" id="qs-postprocess" type="number" step="0.01"></div>
@@ -4246,7 +4557,7 @@ function showQTab(tab) {
   if (navBtn) navBtn.classList.add('active');
   // Render tab content
   if (tab === 'dashboard')  qRenderDashboard();
-  if (tab === 'quote')      { qPopulateFormSelects(); qUpdateQuoteCalc(); }
+  if (tab === 'quote')      { if (qFormParts.length === 0) qClearForm(); else { qRenderPartTabs(); qRenderActivePartForm(); qUpdateQuoteCalc(); } }
   if (tab === 'log')        qRenderQuoteLog();
   if (tab === 'customers')  qRenderCustomers();
   if (tab === 'settings')   qRenderSettings();
@@ -4352,13 +4663,16 @@ function qCalcFromQuoteData(q) {
   const elecCost = prt ? printH * prt.energy * (s.energy || 0.26) : 0;
   const deprCost = printH * deprRate;
 
-  // Failure rate
+  // Failure rate — complexity now has stronger impact (divisor 8 instead of 18)
   const baseFail = s.base_fail || 0.1;
   const maxFail  = s.max_fail  || 0.5;
-  const fail = Math.min(baseFail + ((complexity + filComplexity - 2) / 18) * (maxFail - baseFail), maxFail);
+  const fail = Math.min(baseFail + ((complexity + filComplexity - 2) / 8) * (maxFail - baseFail), maxFail);
 
-  // Machine cost/pc (fail-adjusted)
-  const machinePP = (filamentCost + suppCost + elecCost + deprCost + consumables) * (1 + fail);
+  // Complexity cost multiplier: complexity 1 = 1.0x, complexity 10 = 1.45x
+  const complexityMult = 1.0 + (complexity - 1) * 0.05;
+
+  // Machine cost/pc (fail-adjusted + complexity-scaled)
+  const machinePP = (filamentCost + suppCost + elecCost + deprCost + consumables) * (1 + fail) * complexityMult;
 
   // Labor
   const skilledRate = s.skilled_labor || 22;
@@ -4433,7 +4747,7 @@ function qCalcQuickQuote(slicerData, overrides) {
     printer:      printer,
     weight_g:     adjWeight,
     print_time:   String(adjTimeH),
-    complexity:   mat ? mat.complexity : 1,
+    complexity:   slicerData.complexity || (mat ? mat.complexity : 1),
     quantity:     quantity,
     rush:         1.0,
     prep_model:0, prep_slice:0,
@@ -4459,12 +4773,13 @@ function openQuickQuote(slicerResults) {
     const defaultPrinter  = (qState.settings.printers||[])[0]?.name || '';
     const mats = qState.settings.materials || [];
     const defaultFilament = (mats.find(m => m.name.includes('PLA')) || mats[0])?.name || 'PLA+';
-    const calc = qCalcQuickQuote(sr, { printer: defaultPrinter, filament: defaultFilament, quantity: 1 });
+    const qty = sr.quantity || 1;
+    const calc = qCalcQuickQuote(sr, { printer: defaultPrinter, filament: defaultFilament, quantity: qty });
     return {
       slicerData: sr,
       printer:    defaultPrinter,
       filament:   defaultFilament,
-      quantity:   1,
+      quantity:   qty,
       calc:       calc
     };
   });
@@ -4509,9 +4824,12 @@ function renderQuickQuote() {
       '<option value="' + m.name + '"' + (m.name === item.filament ? ' selected' : '') + '>' + m.name + '</option>'
     ).join('');
 
+    const mat = qGetMaterial(item.filament);
+    const adjTimeMins = (item.slicerData.base_time_minutes||0) * ((mat && mat.time_multiplier) || 1.0);
+    const adjWeightG  = (item.slicerData.base_weight_g||0) * ((mat && mat.weight_multiplier) || 1.0);
     const bd = [
-      ['Print Time',    ((item.slicerData.base_time_minutes||0)).toFixed(0) + ' min', ''],
-      ['Weight',        (item.slicerData.base_weight_g||0).toFixed(1) + ' g', ''],
+      ['Print Time',    adjTimeMins.toFixed(0) + ' min', ''],
+      ['Weight',        adjWeightG.toFixed(1) + ' g', ''],
       ['Material Cost', qCur(c.filamentCost), ''],
       ['Machine Cost',  qCur(c.machinePP), ''],
       ['Failure Adj',   (c.fail * 100).toFixed(0) + '%', 'yellow'],
@@ -4560,6 +4878,214 @@ function renderQuickQuote() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   QUICK QUOTE PDF GENERATION
+═══════════════════════════════════════════════════════════════ */
+var QQ_MAT_INFO = {
+  'PLA+':      { tagline:'Great all-purpose everyday material',      heat:1, strength:4, flex:1, outdoor:1, stiff:5, surface:4, best:['Prototypes & display models','Decorative parts & figurines','Low-stress indoor brackets & clips'] },
+  'PETG':      { tagline:'Tough, moisture-resistant all-rounder',    heat:3, strength:4, flex:2, outdoor:3, stiff:3, surface:3, best:['Functional enclosures & brackets','Parts that need some flex without breaking','Moisture-exposed indoor/outdoor parts'] },
+  'TPU':       { tagline:'Flexible rubber-like filament',            heat:2, strength:2, flex:5, outdoor:3, stiff:1, surface:2, best:['Grips, handles & bumpers','Phone cases & wearables','Seals, gaskets & flexible connectors'] },
+  'PETG-CF':   { tagline:'Carbon-reinforced \\u2014 stiff & lightweight',  heat:3, strength:5, flex:1, outdoor:3, stiff:5, surface:2, best:['Structural frames & load-bearing brackets','Drone, RC & robotics parts','Lightweight parts that must stay rigid'] },
+  'ABS':       { tagline:'Heat-resistant engineering plastic',       heat:4, strength:4, flex:2, outdoor:2, stiff:4, surface:4, best:['Electronics & appliance housings','Automotive interior components','Parts that will be sanded, drilled or painted'] },
+  'ASA':       { tagline:'UV-stable for long-term outdoor use',      heat:4, strength:4, flex:2, outdoor:5, stiff:4, surface:3, best:['Garden fixtures & outdoor signage','Automotive exterior trim','Any part that lives in direct sunlight'] },
+  'LW PLA HT': { tagline:'Ultra-lightweight foam PLA, heat-tolerant',heat:3, strength:2, flex:1, outdoor:2, stiff:2, surface:2, best:['RC aircraft & drone airframes','Weight-critical parts up to ~90 \\u00b0C','Hobby models where every gram counts'] },
+  'LW PLA':    { tagline:'Ultra-lightweight foam PLA',               heat:1, strength:2, flex:1, outdoor:1, stiff:2, surface:2, best:['RC planes & gliders','Lightweight model airframes','Display props & theatrical models'] },
+  'PA12':      { tagline:'Premium nylon for demanding applications', heat:4, strength:5, flex:3, outdoor:3, stiff:3, surface:3, best:['Industrial functional parts','High-cycle mechanical components','Chemical-resistant enclosures & fittings'] }
+};
+
+function qqDownloadPDF() {
+  if (qqItems.length === 0) return;
+
+  var s = qState.settings;
+  var company = s.company || 'LNL3D';
+  var cur = function(n) {
+    var sym = s.currency || '$';
+    return sym + parseFloat(n||0).toFixed(2).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
+  };
+  var today = new Date();
+  var dateStr = today.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+
+  // Contact info lines
+  var contactLines = [];
+  if (s.email)   contactLines.push(s.email);
+  if (s.phone)   contactLines.push(s.phone);
+  if (s.website) contactLines.push(s.website);
+  var contactHTML = contactLines.map(function(l) { return '<div>' + l + '</div>'; }).join('');
+
+  // Line items
+  var totalPrice = 0;
+  var itemRows = qqItems.map(function(item) {
+    var c = item.calc;
+    var lineTotal = c.suggested;
+    totalPrice += lineTotal;
+    return '<tr>' +
+      '<td>' + (item.slicerData.filename || 'Part') + '</td>' +
+      '<td>' + (item.filament || '-') + '</td>' +
+      '<td class="right">' + item.quantity + '</td>' +
+      '<td class="right">' + cur(c.pricePP) + '</td>' +
+      '<td class="right">' + cur(lineTotal) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  // Volume price breaks — show what-if pricing at each tier rate
+  var tiers = [...(s.discounts||[])].sort(function(a,b) { return a.qty - b.qty; });
+  var tiersHTML = '';
+  if (tiers.length > 1) {
+    var totalQty = 0;
+    qqItems.forEach(function(item) { totalQty += item.quantity; });
+
+    var tierRows = tiers.map(function(t) {
+      // Recalculate each item at its OWN quantity but with this tier's markup
+      var tierTotal = 0;
+      qqItems.forEach(function(item) {
+        var tierCalc = qCalcQuickQuote(item.slicerData, {
+          printer: item.printer, filament: item.filament, quantity: item.quantity
+        });
+        // Override markup: apply this tier's markup instead of the qty-based one
+        var tierMarkup = Math.max(t.markup, s.min_markup || 1.2);
+        var itemTotal = Math.max(tierCalc.costPP * item.quantity * tierMarkup, s.min_fee || 5);
+        tierTotal += itemTotal;
+      });
+      var tierPPU = totalQty > 0 ? tierTotal / totalQty : 0;
+
+      // Is this the active tier?
+      var activeTier = tiers.filter(function(r) { return r.qty <= totalQty; });
+      var isActive = activeTier.length > 0 && t.qty === activeTier[activeTier.length - 1].qty;
+
+      // Savings vs first tier
+      var baseTierTotal = 0;
+      qqItems.forEach(function(item) {
+        var bc = qCalcQuickQuote(item.slicerData, {
+          printer: item.printer, filament: item.filament, quantity: item.quantity
+        });
+        var baseMarkup = Math.max(tiers[0].markup, s.min_markup || 1.2);
+        baseTierTotal += Math.max(bc.costPP * item.quantity * baseMarkup, s.min_fee || 5);
+      });
+      var basePPU = totalQty > 0 ? baseTierTotal / totalQty : 0;
+      var savings = basePPU > 0 ? ((1 - tierPPU / basePPU) * 100).toFixed(0) : 0;
+
+      return '<tr class="' + (isActive ? 'active-tier' : '') + '">' +
+        '<td>' + t.qty + '+ pieces' + (isActive ? '<span class="qq-pdf-tier-label">Your Qty</span>' : '') + '</td>' +
+        '<td>' + cur(tierPPU) + '</td>' +
+        '<td>' + cur(tierTotal) + '</td>' +
+        '<td>' + (savings > 0 ? '<span class="qq-pdf-tier-savings">' + savings + '% savings</span>' : '') + '</td>' +
+      '</tr>';
+    }).join('');
+    tiersHTML = '<div class="qq-pdf-section">Volume Pricing</div>' +
+      '<table class="qq-pdf-tiers">' +
+        '<thead><tr><th>Quantity</th><th>Avg Price/Unit</th><th>Total</th><th></th></tr></thead>' +
+        '<tbody>' + tierRows + '</tbody>' +
+      '</table>';
+  }
+
+  // Services with descriptions
+  var services = [
+    ['3D Printing (FDM)', 'Production-ready parts in 30+ materials'],
+    ['CAD Design', 'Custom part modeling and modifications'],
+    ['Reverse Engineering', 'Recreate parts from physical samples'],
+    ['3D Scanning', 'High-precision digital capture of objects'],
+    ['Laser Engraving', 'Permanent marking and personalization'],
+    ['Full Color UV Printing', 'Vibrant graphics directly on parts'],
+    ['Hardware Embedding', 'Threaded inserts, magnets, and more']
+  ];
+  var servicesHTML = services.map(function(svc) {
+    return '<div class="qq-pdf-service"><div class="qq-pdf-service-name">' + svc[0] + '</div><div class="qq-pdf-service-desc">' + svc[1] + '</div></div>';
+  }).join('');
+
+  // Collect filaments used in this quote for the recommended badge
+  var usedFilaments = {};
+  qqItems.forEach(function(item) { usedFilaments[item.filament] = true; });
+
+  // Materials guide page
+  var mats = s.materials || [];
+  var dots = function(n) {
+    var out = '';
+    for (var i = 0; i < 5; i++) {
+      out += '<span class="' + (i < n ? 'on' : 'off') + '">\\u25cf</span>';
+    }
+    return out;
+  };
+  var matCards = mats.map(function(m) {
+    var info = QQ_MAT_INFO[m.name] || { tagline:'Specialist engineering filament', heat:3, strength:3, flex:2, outdoor:2, stiff:3, surface:3, best:['Functional and structural parts','Engineering applications'] };
+    var isRec = usedFilaments[m.name] || false;
+    return '<div class="qq-pdf-mat-card' + (isRec ? ' recommended' : '') + '">' +
+      (isRec ? '<div class="qq-pdf-mat-badge">Quoted</div>' : '') +
+      '<div class="qq-pdf-mat-card-head">' +
+        '<span class="qq-pdf-mat-name">' + m.name + '</span>' +
+        '<span class="qq-pdf-mat-tagline">' + info.tagline + '</span>' +
+      '</div>' +
+      '<div class="qq-pdf-mat-body">' +
+        '<div class="qq-pdf-mat-props">' +
+          '<div class="qq-pdf-mat-prop"><span class="qq-pdf-mat-prop-label">Strength</span><span class="qq-pdf-mat-dots">' + dots(info.strength) + '</span></div>' +
+          '<div class="qq-pdf-mat-prop"><span class="qq-pdf-mat-prop-label">Heat resist.</span><span class="qq-pdf-mat-dots">' + dots(info.heat) + '</span></div>' +
+          '<div class="qq-pdf-mat-prop"><span class="qq-pdf-mat-prop-label">Flexibility</span><span class="qq-pdf-mat-dots">' + dots(info.flex) + '</span></div>' +
+          '<div class="qq-pdf-mat-prop"><span class="qq-pdf-mat-prop-label">Outdoors</span><span class="qq-pdf-mat-dots">' + dots(info.outdoor) + '</span></div>' +
+        '</div>' +
+        '<div class="qq-pdf-mat-best-label">Best for</div>' +
+        '<ul class="qq-pdf-mat-best">' + info.best.map(function(b) { return '<li>' + b + '</li>'; }).join('') + '</ul>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  var logoUrl = '/api/logo.png';
+  var contactFooter = contactLines.join(' \\u00b7 ');
+  var html = '<div class="qq-pdf">' +
+    '<div class="qq-pdf-page">' +
+      '<div class="qq-pdf-header">' +
+        '<div class="qq-pdf-header-left"><img src="' + logoUrl + '" class="qq-pdf-logo" alt="' + company + '"><div><div class="qq-pdf-company">' + company + '</div><div class="qq-pdf-company-sub">3D Printing &amp; Manufacturing Solutions</div></div></div>' +
+        '<div class="qq-pdf-contact">' + contactHTML + '</div>' +
+      '</div>' +
+      '<div class="qq-pdf-title">Quote Estimate</div>' +
+      '<div class="qq-pdf-subtitle">Thank you for your interest \\u2014 here\\u2019s our proposal for your project.</div>' +
+      '<div class="qq-pdf-meta"><span>Date: ' + dateStr + '</span></div>' +
+      '<table class="qq-pdf-table">' +
+        '<thead><tr><th>Part</th><th>Material</th><th class="right">Qty</th><th class="right">Unit Price</th><th class="right">Total</th></tr></thead>' +
+        '<tbody>' + itemRows + '</tbody>' +
+      '</table>' +
+      '<div class="qq-pdf-total-row"><span class="qq-pdf-total-label">Estimated Total</span><span class="qq-pdf-total-amount">' + cur(totalPrice) + '</span></div>' +
+      '<div class="qq-pdf-next-page"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v8m0 0l3-3m-3 3L5 8" stroke="#c2410c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> See our Material Guide on the next page to learn about filament options for your project</div>' +
+      tiersHTML +
+      '<div class="qq-pdf-section">Our Capabilities</div>' +
+      '<div class="qq-pdf-services">' + servicesHTML + '</div>' +
+      '<div class="qq-pdf-validity">This estimate is valid for 30 days from the date above. Prices may vary based on final design review and material availability.</div>' +
+      '<div class="qq-pdf-footer"><div>' + company + '</div><div class="qq-pdf-footer-contact">' + contactFooter + '</div></div>' +
+      '<div class="qq-pdf-page-num">Page 1 of 2</div>' +
+    '</div>' +
+    '<div class="qq-pdf-page">' +
+      '<div class="qq-pdf-mat-header"><div class="qq-pdf-header-left"><img src="' + logoUrl + '" class="qq-pdf-logo" alt="' + company + '"><div><div class="qq-pdf-mat-title">Material Guide</div><div class="qq-pdf-mat-sub">Plain-language overview of available filament options \\u2014 ' + company + '</div></div></div></div>' +
+      '<p class="qq-pdf-mat-intro">Not sure which material is right for your project? This guide explains the key differences and what each material is best suited for. Each material is rated 1\\u20134 key properties. We\\u2019re happy to make a recommendation based on your specific needs \\u2014 just ask!</p>' +
+      '<div class="qq-pdf-mat-grid">' + matCards + '</div>' +
+      '<div class="qq-pdf-mat-cta"><div class="qq-pdf-mat-cta-text">Not sure which material is best? We\\u2019re happy to help \\u2014 reach out and we\\u2019ll recommend the right fit for your project.</div><div class="qq-pdf-mat-cta-contact">' + contactFooter + '</div></div>' +
+      '<p class="qq-pdf-mat-note">Ratings are relative guides, not engineering specifications. All materials are FDM (fused deposition) 3D printed.</p>' +
+      '<div class="qq-pdf-footer"><div>' + company + '</div><div class="qq-pdf-footer-contact">' + contactFooter + '</div></div>' +
+      '<div class="qq-pdf-page-num">Page 2 of 2</div>' +
+    '</div>' +
+  '</div>';
+
+  var frame = document.getElementById('qq-pdf-frame');
+  frame.innerHTML = html;
+  frame.style.display = 'block';
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() { frame.style.display = 'none'; }, 500);
+  }, 300);
+}
+
+/* ── Slicer-screen PDF helpers (skip overlay, go straight to PDF) ── */
+async function slicerQuickPDF() {
+  if (_slicerResultsForQuote.length === 0) return;
+  await loadQuotingState();
+  var defaultPrinter  = ((qState.settings.printers||[])[0]||{}).name || '';
+  var mats = qState.settings.materials || [];
+  var defaultFilament = ((mats.find(function(m){return m.name.indexOf('PLA')>=0;}) || mats[0])||{}).name || 'PLA+';
+  qqItems = _slicerResultsForQuote.map(function(sr) {
+    var qty = sr.quantity || 1;
+    var calc = qCalcQuickQuote(sr, { printer: defaultPrinter, filament: defaultFilament, quantity: qty });
+    return { slicerData: sr, printer: defaultPrinter, filament: defaultFilament, quantity: qty, calc: calc };
+  });
+  qqDownloadPDF();
+}
+
+/* ═══════════════════════════════════════════════════════════════
    QUOTE LOGGING FROM QUICK QUOTE  (Task 8)
 ═══════════════════════════════════════════════════════════════ */
 async function logQuickQuote() {
@@ -4588,7 +5114,7 @@ async function logQuickQuote() {
       weight_g:      (item.slicerData.base_weight_g || 0) * ((mat && mat.weight_multiplier) || 1.0),
       print_time:    String(((item.slicerData.base_time_minutes||0)/60) * ((mat && mat.time_multiplier) || 1.0)),
       quantity:      item.quantity,
-      complexity:    mat ? mat.complexity : 1,
+      complexity:    item.slicerData.complexity || (mat ? mat.complexity : 1),
       cost_per_piece: c.costPP,
       price_per_piece: c.pricePP,
       suggested:     c.suggested,
@@ -4632,12 +5158,19 @@ async function logQuickQuote() {
 
 function openFullQuoteForm() {
   if (qqItems.length === 0) return;
+  var itemsCopy = qqItems.slice();
+  if (itemsCopy.length > 1) {
+    var msg = 'The Full Details form handles one part at a time.\\n\\n' +
+      'You have ' + itemsCopy.length + ' parts in this quote.\\n' +
+      'The first part (' + (itemsCopy[0].slicerData.filename || 'unknown') + ') will be loaded.\\n\\n' +
+      'To quote all parts, use "Log Quote" from the Quick Quote view instead.';
+    if (!confirm(msg)) return;
+  }
   closeQuickQuote();
   showPhase('quoting');
   showQTab('quote');
-  // If a prefillQuoteForm function exists (from a later task), call it
   if (typeof prefillQuoteForm === 'function') {
-    prefillQuoteForm(qqItems);
+    prefillQuoteForm(itemsCopy);
   }
 }
 
@@ -4661,6 +5194,9 @@ function qRenderSettings() {
   var el = function(id) { return document.getElementById(id); };
   el('qs-company').value     = s.company || 'LNL3D';
   el('qs-currency').value    = s.currency || '$';
+  el('qs-email').value       = s.email || '';
+  el('qs-phone').value       = s.phone || '';
+  el('qs-website').value     = s.website || '';
   el('qs-energy').value      = s.energy || 0.26;
   el('qs-skilled').value     = s.skilled_labor || 22;
   el('qs-postprocess').value = s.postprocess_labor || 22;
@@ -4745,6 +5281,9 @@ function qSaveSettings() {
   var s = qState.settings;
   s.company          = document.getElementById('qs-company').value || 'LNL3D';
   s.currency         = document.getElementById('qs-currency').value || '$';
+  s.email            = document.getElementById('qs-email').value.trim();
+  s.phone            = document.getElementById('qs-phone').value.trim();
+  s.website          = document.getElementById('qs-website').value.trim();
   s.energy           = parseFloat(document.getElementById('qs-energy').value) || 0.26;
   s.skilled_labor    = parseFloat(document.getElementById('qs-skilled').value) || 22;
   s.postprocess_labor= parseFloat(document.getElementById('qs-postprocess').value) || 22;
@@ -4840,50 +5379,82 @@ function qRenderDashboard() {
 ═══════════════════════════════════════════════════════════════ */
 function qRenderQuoteLog() {
   var search = (document.getElementById('q-log-search').value || '').toLowerCase();
-  var statusFilter = document.getElementById('q-log-filter-status').value || '';
+  var statusFilter = document.getElementById('q-log-status') ? document.getElementById('q-log-status').value : '';
+  var quotes = (qState.quotes || []).slice().sort(function(a, b) { return (b.serial || 0) - (a.serial || 0); });
+  var filtered = quotes.filter(function(q) {
+    if (statusFilter && q.status !== statusFilter) return false;
+    if (!search) return true;
+    return ((q.customer || '') + ' ' + (q.description || '') + ' ' + (q.quote_id || '')).toLowerCase().indexOf(search) >= 0;
+  });
 
-  var quotes = (qState.quotes || []).slice().sort(function(a, b) { return (b.serial||0) - (a.serial||0); });
-  if (search) {
-    quotes = quotes.filter(function(q) {
-      return (q.customer || '').toLowerCase().indexOf(search) >= 0 ||
-             (q.description || '').toLowerCase().indexOf(search) >= 0 ||
-             (q.quote_id || q.id || '').toLowerCase().indexOf(search) >= 0;
-    });
-  }
-  if (statusFilter) {
-    quotes = quotes.filter(function(q) { return q.status === statusFilter; });
-  }
-
-  var tbody = document.getElementById('q-log-body');
+  var table = document.getElementById('q-log-table');
   var empty = document.getElementById('q-log-empty');
-  var tableWrap = document.getElementById('q-log-table-wrap');
-
-  if (quotes.length === 0) {
-    tableWrap.style.display = 'none';
-    empty.style.display = 'block';
+  if (filtered.length === 0) {
+    if (table) table.style.display = 'none';
+    if (empty) { empty.style.display = 'block'; empty.textContent = search || statusFilter ? 'No quotes match your search.' : 'No quotes yet. Create one from the Quote tab.'; }
     return;
   }
-  tableWrap.style.display = '';
-  empty.style.display = 'none';
+  if (table) table.style.display = '';
+  if (empty) empty.style.display = 'none';
 
-  tbody.innerHTML = quotes.map(function(q) {
-    var c = qCalcFromQuoteData(q);
-    var serial = q.serial || 0;
-    return '<tr>' +
-      '<td class="q-td-mono">' + qFmtSerial(serial) + '</td>' +
-      '<td class="q-td-mono" style="font-size:11px">' + (q.quote_id || q.id || '-') + '</td>' +
-      '<td style="white-space:nowrap;font-size:12px">' + (q.date || q.created || '-').slice(0, 10) + '</td>' +
-      '<td style="font-weight:500">' + (q.customer || '-') + '</td>' +
-      '<td style="color:var(--q-text2);font-size:12px">' + (q.description || '-') + '</td>' +
-      '<td>' + qStatusBadge(q.status) + '</td>' +
-      '<td class="q-td-center">' + (q.quantity || 1) + '</td>' +
-      '<td class="q-td-right q-td-mono q-text-green">' + qCur(c.suggested) + '</td>' +
-      '<td><div style="display:flex;gap:4px">' +
-        '<button class="q-btn q-btn-ghost q-btn-sm" onclick="qEditQuote(' + serial + ')">Edit</button>' +
-        '<button class="q-btn q-btn-danger q-btn-sm" onclick="qDeleteQuote(' + serial + ')">&#10005;</button>' +
-      '</div></td>' +
+  var body = document.getElementById('q-log-body');
+  if (!body) return;
+  body.innerHTML = filtered.map(function(q) {
+    var s = q.serial || 0;
+    var li = q.line_items || [];
+    var partCount = li.length;
+    var totalQty = 0;
+    var totalSugg = q.calc_total_suggested || q.total_suggested || 0;
+    if (partCount > 0) {
+      li.forEach(function(item) { totalQty += (item.quantity || 1); });
+    } else {
+      totalQty = q.quantity || 1;
+      totalSugg = q.calc_suggested || totalSugg;
+    }
+    var desc = q.description || '';
+    var partsBadge = partCount > 1 ? '<span class="q-log-parts-badge">' + partCount + ' parts</span>' : '';
+    var expandBtn = partCount > 1 ? '<button class="q-log-expand" onclick="qToggleLogExpand(this,' + s + ')">\\u25b6</button>' : '';
+    var statusCls = (q.status || 'Quoting').toLowerCase().replace(/\\s+/g, '-');
+
+    var mainRow = '<tr>' +
+      '<td>' + expandBtn + qFmtSerial(s) + '</td>' +
+      '<td style="font-size:11px">' + (q.quote_id || '') + '</td>' +
+      '<td>' + (q.date || q.created || '').substring(0, 10) + '</td>' +
+      '<td>' + (q.customer || '') + '</td>' +
+      '<td>' + desc + partsBadge + '</td>' +
+      '<td><span class="q-status-badge q-status-' + statusCls + '">' + (q.status || 'Quoting') + '</span></td>' +
+      '<td>' + totalQty + '</td>' +
+      '<td>' + qCur(totalSugg) + '</td>' +
+      '<td><button class="q-btn q-btn-ghost q-btn-sm" onclick="qEditQuote(' + s + ')">Edit</button> <button class="q-btn q-btn-danger q-btn-sm" onclick="qDeleteQuote(' + s + ')">\\u2715</button></td>' +
     '</tr>';
+
+    // Sub-rows for line items (hidden by default)
+    var subRows = '';
+    if (partCount > 1) {
+      subRows = li.map(function(item) {
+        return '<tr class="q-log-sub-row" data-serial="' + s + '" style="display:none">' +
+          '<td></td>' +
+          '<td colspan="2">' + (item.filename || 'Part') + '</td>' +
+          '<td>' + (item.filament || '') + '</td>' +
+          '<td>' + (item.printer || '') + '</td>' +
+          '<td></td>' +
+          '<td>' + (item.quantity || 1) + '</td>' +
+          '<td>' + qCur(item.calc_suggested || item.suggested || 0) + '</td>' +
+          '<td></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    return mainRow + subRows;
   }).join('');
+}
+
+function qToggleLogExpand(btn, serial) {
+  btn.classList.toggle('open');
+  var rows = document.querySelectorAll('.q-log-sub-row[data-serial="' + serial + '"]');
+  rows.forEach(function(row) {
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+  });
 }
 
 function qDeleteQuote(serial) {
@@ -4894,14 +5465,15 @@ function qDeleteQuote(serial) {
 }
 
 function qEditQuote(serial) {
-  var q = (qState.quotes || []).find(function(x) { return x.serial === serial; });
+  var q = qState.quotes.find(function(q) { return q.serial === serial; });
   if (!q) return;
   qCurrentEditSerial = serial;
   showQTab('quote');
-  qPopulateFormSelects();
   qSetFormData(q);
-  document.getElementById('q-page-title').textContent = 'Editing Quote #' + qFmtSerial(serial);
-  document.getElementById('q-page-sub').textContent = (q.customer || '') + ' - ' + (q.description || '');
+  var titleEl = document.getElementById('q-quote-title');
+  var subEl = document.getElementById('q-quote-sub');
+  if (titleEl) titleEl.textContent = 'Editing Quote #' + qFmtSerial(serial);
+  if (subEl) subEl.textContent = (q.customer || '') + ' \\u2014 ' + (q.description || '');
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -5009,53 +5581,226 @@ function qDeleteCustomer(idx) {
    FULL QUOTE FORM LOGIC  (Task 12)
 ═══════════════════════════════════════════════════════════════ */
 var qCurrentEditSerial = null;
+var qFormParts = [];  // Array of part data objects
+var qActivePartIdx = 0;
 
-function qPopulateFormSelects() {
+function qMakeEmptyPart(filename) {
   var printers = qState.settings.printers || [];
   var materials = qState.settings.materials || [];
-  var pSel = document.getElementById('qf-printer');
-  var fSel = document.getElementById('qf-filament');
-  var sfSel = document.getElementById('qf-support-filament');
-  if (pSel) pSel.innerHTML = printers.map(function(p) { return '<option>' + p.name + '</option>'; }).join('');
-  if (fSel) fSel.innerHTML = materials.map(function(m) { return '<option>' + m.name + '</option>'; }).join('');
-  if (sfSel) sfSel.innerHTML = '<option value="">None</option>' + materials.map(function(m) { return '<option>' + m.name + '</option>'; }).join('');
-}
-
-function qGetFormData() {
-  var v = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
   return {
-    customer:         v('qf-customer'),
-    project:          v('qf-project'),
-    description:      v('qf-description'),
-    date:             v('qf-date'),
-    status:           v('qf-status'),
-    rush:             v('qf-rush'),
-    notes:            v('qf-notes'),
-    printer:          v('qf-printer'),
-    filament:         v('qf-filament'),
-    weight_g:         v('qf-weight'),
-    print_time:       v('qf-printtime'),
-    complexity:       v('qf-complexity'),
-    quantity:         v('qf-qty'),
-    quoted_price:     v('qf-quoted'),
-    support_filament: v('qf-support-filament'),
-    support_weight_g: v('qf-support-weight'),
-    prep_model:       v('qf-prep-model'),
-    prep_slice:       v('qf-prep-slice'),
-    post_remove:      v('qf-post-remove'),
-    post_support:     v('qf-post-support'),
-    post_extra:       v('qf-post-extra'),
-    fin_sand:         v('qf-fin-sand'),
-    fin_paint:        v('qf-fin-paint'),
-    fin_hardware:     v('qf-fin-hardware'),
-    fin_other:        v('qf-fin-other'),
-    ship_pack:        v('qf-ship-pack'),
-    ship_cost:        v('qf-ship-cost'),
-    consumables:      v('qf-consumables')
+    filename:         filename || '',
+    printer:          printers.length ? printers[0].name : '',
+    filament:         materials.length ? materials[0].name : '',
+    weight_g:         0,
+    print_time:       '',
+    complexity:       1,
+    quantity:         1,
+    support_filament: '',
+    support_weight_g: 0,
+    prep_model:       0,
+    prep_slice:       0,
+    post_remove:      2,
+    post_support:     5,
+    post_extra:       0,
+    fin_sand:         0,
+    fin_paint:        0,
+    fin_hardware:     0,
+    fin_other:        0,
+    consumables:      0,
+    job_id:           null
   };
 }
 
+function qAddPart(partData) {
+  qFormParts.push(partData || qMakeEmptyPart());
+  qActivePartIdx = qFormParts.length - 1;
+  qRenderPartTabs();
+  qRenderActivePartForm();
+  qUpdateQuoteCalc();
+}
+
+function qRemovePart(idx) {
+  if (qFormParts.length <= 1) return;
+  qFormParts.splice(idx, 1);
+  if (qActivePartIdx >= qFormParts.length) qActivePartIdx = qFormParts.length - 1;
+  qRenderPartTabs();
+  qRenderActivePartForm();
+  qUpdateQuoteCalc();
+}
+
+function qSwitchPart(idx) {
+  qSaveActivePartToState();
+  qActivePartIdx = idx;
+  qRenderPartTabs();
+  qRenderActivePartForm();
+}
+
+function qSaveActivePartToState() {
+  if (qActivePartIdx < 0 || qActivePartIdx >= qFormParts.length) return;
+  var p = qFormParts[qActivePartIdx];
+  var v = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+  p.printer          = v('qfp-printer');
+  p.filament         = v('qfp-filament');
+  p.weight_g         = v('qfp-weight');
+  p.print_time       = v('qfp-printtime');
+  p.complexity       = v('qfp-complexity');
+  p.quantity         = v('qfp-qty');
+  p.support_filament = v('qfp-support-filament');
+  p.support_weight_g = v('qfp-support-weight');
+  p.prep_model       = v('qfp-prep-model');
+  p.prep_slice       = v('qfp-prep-slice');
+  p.post_remove      = v('qfp-post-remove');
+  p.post_support     = v('qfp-post-support');
+  p.post_extra       = v('qfp-post-extra');
+  p.fin_sand         = v('qfp-fin-sand');
+  p.fin_paint        = v('qfp-fin-paint');
+  p.fin_hardware     = v('qfp-fin-hardware');
+  p.fin_other        = v('qfp-fin-other');
+  p.consumables      = v('qfp-consumables');
+}
+
+function qRenderPartTabs() {
+  var container = document.getElementById('q-part-tabs');
+  var html = '';
+  for (var i = 0; i < qFormParts.length; i++) {
+    var p = qFormParts[i];
+    var label = p.filename ? p.filename : 'Part ' + (i + 1);
+    if (label.length > 20) label = label.substring(0, 18) + '...';
+    var closeBtn = qFormParts.length > 1 ? ' <span class="q-tab-close" onclick="event.stopPropagation();qRemovePart(' + i + ')">\\u2715</span>' : '';
+    html += '<button class="q-part-tab' + (i === qActivePartIdx ? ' active' : '') + '" onclick="qSwitchPart(' + i + ')">' + label + closeBtn + '</button>';
+  }
+  html += '<button class="q-part-tab-add" onclick="qAddPart()">+ Add Part</button>';
+  container.innerHTML = html;
+}
+
+function qRenderActivePartForm() {
+  var p = qFormParts[qActivePartIdx];
+  if (!p) return;
+  var printers = qState.settings.printers || [];
+  var materials = qState.settings.materials || [];
+  var pOpts = printers.map(function(pr) { return '<option value="' + pr.name + '"' + (pr.name === p.printer ? ' selected' : '') + '>' + pr.name + '</option>'; }).join('');
+  var mOpts = materials.map(function(m) { return '<option value="' + m.name + '"' + (m.name === p.filament ? ' selected' : '') + '>' + m.name + '</option>'; }).join('');
+  var smOpts = '<option value="">None</option>' + materials.map(function(m) { return '<option value="' + m.name + '"' + (m.name === p.support_filament ? ' selected' : '') + '>' + m.name + '</option>'; }).join('');
+  var cxOpts = '';
+  for (var c = 1; c <= 10; c++) cxOpts += '<option value="' + c + '"' + (parseInt(p.complexity) === c ? ' selected' : '') + '>' + c + '</option>';
+
+  var container = document.getElementById('q-part-content');
+  container.innerHTML =
+    '<div class="q-form-section" style="margin-top:0;border-top:none;padding-top:0">Print Details</div>' +
+    '<div class="q-form-row q-form-row-3">' +
+      '<div class="q-form-group"><label class="q-form-label">Printer</label><select class="q-form-input" id="qfp-printer" onchange="qPartFieldChanged()">' + pOpts + '</select></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Filament</label><select class="q-form-input" id="qfp-filament" onchange="qPartFieldChanged()">' + mOpts + '</select></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Quantity</label><input class="q-form-input" type="number" id="qfp-qty" value="' + (p.quantity || 1) + '" min="1" oninput="qPartFieldChanged()"></div>' +
+    '</div>' +
+    '<div class="q-form-row q-form-row-3">' +
+      '<div class="q-form-group"><label class="q-form-label">Weight (g)</label><input class="q-form-input" type="number" id="qfp-weight" value="' + (p.weight_g || 0) + '" step="0.1" oninput="qPartFieldChanged()"></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Print Time (h)</label><input class="q-form-input" type="text" id="qfp-printtime" value="' + (p.print_time || '') + '" placeholder="5:47 or 5.78" oninput="qPartFieldChanged()"></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Complexity</label><select class="q-form-input" id="qfp-complexity" onchange="qPartFieldChanged()">' + cxOpts + '</select></div>' +
+    '</div>' +
+    '<div class="q-form-section">Secondary Material</div>' +
+    '<div class="q-form-row q-form-row-2">' +
+      '<div class="q-form-group"><label class="q-form-label">Support Filament</label><select class="q-form-input" id="qfp-support-filament" onchange="qPartFieldChanged()">' + smOpts + '</select></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Support Weight (g)</label><input class="q-form-input" type="number" id="qfp-support-weight" value="' + (p.support_weight_g || 0) + '" step="0.1" oninput="qPartFieldChanged()"></div>' +
+    '</div>' +
+    '<div class="q-form-section">Labor</div>' +
+    '<div class="q-form-row q-form-row-3">' +
+      '<div class="q-form-group"><label class="q-form-label">Prep Model (min)</label><input class="q-form-input" type="number" id="qfp-prep-model" value="' + (p.prep_model || 0) + '" oninput="qPartFieldChanged()"></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Prep Slice (min)</label><input class="q-form-input" type="number" id="qfp-prep-slice" value="' + (p.prep_slice || 0) + '" oninput="qPartFieldChanged()"></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Post Remove (min)</label><input class="q-form-input" type="number" id="qfp-post-remove" value="' + (p.post_remove !== undefined ? p.post_remove : 2) + '" oninput="qPartFieldChanged()"></div>' +
+    '</div>' +
+    '<div class="q-form-row q-form-row-2">' +
+      '<div class="q-form-group"><label class="q-form-label">Post Support (min)</label><input class="q-form-input" type="number" id="qfp-post-support" value="' + (p.post_support !== undefined ? p.post_support : 5) + '" oninput="qPartFieldChanged()"></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Post Extra (min)</label><input class="q-form-input" type="number" id="qfp-post-extra" value="' + (p.post_extra || 0) + '" oninput="qPartFieldChanged()"></div>' +
+    '</div>' +
+    '<div class="q-form-section">Finishing Materials</div>' +
+    '<div class="q-form-row q-form-row-4">' +
+      '<div class="q-form-group"><label class="q-form-label">Sand ($)</label><input class="q-form-input" type="number" id="qfp-fin-sand" value="' + (p.fin_sand || 0) + '" step="0.01" oninput="qPartFieldChanged()"></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Paint ($)</label><input class="q-form-input" type="number" id="qfp-fin-paint" value="' + (p.fin_paint || 0) + '" step="0.01" oninput="qPartFieldChanged()"></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Hardware ($)</label><input class="q-form-input" type="number" id="qfp-fin-hardware" value="' + (p.fin_hardware || 0) + '" step="0.01" oninput="qPartFieldChanged()"></div>' +
+      '<div class="q-form-group"><label class="q-form-label">Other ($)</label><input class="q-form-input" type="number" id="qfp-fin-other" value="' + (p.fin_other || 0) + '" step="0.01" oninput="qPartFieldChanged()"></div>' +
+    '</div>' +
+    '<div class="q-form-row q-form-row-2" style="margin-top:8px">' +
+      '<div class="q-form-group"><label class="q-form-label">Consumables ($)</label><input class="q-form-input" type="number" id="qfp-consumables" value="' + (p.consumables || 0) + '" step="0.01" oninput="qPartFieldChanged()"></div>' +
+      '<div></div>' +
+    '</div>';
+}
+
+function qPartFieldChanged() {
+  qSaveActivePartToState();
+  qUpdateQuoteCalc();
+}
+
+// Shared fields getter (quote-level, not per-part)
+function qGetSharedFormData() {
+  var v = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+  return {
+    customer:     v('qf-customer'),
+    project:      v('qf-project'),
+    description:  v('qf-description'),
+    date:         v('qf-date'),
+    status:       v('qf-status'),
+    rush:         v('qf-rush'),
+    notes:        v('qf-notes'),
+    quoted_price: v('qf-quoted'),
+    ship_pack:    v('qf-ship-pack'),
+    ship_cost:    v('qf-ship-cost')
+  };
+}
+
+// Build a calc-ready object for a single part
+function qBuildPartCalcObj(part, shared) {
+  return {
+    filename:         part.filename || '',
+    printer:          part.printer,
+    filament:         part.filament,
+    weight_g:         part.weight_g,
+    print_time:       part.print_time,
+    complexity:       part.complexity || 1,
+    quantity:         part.quantity || 1,
+    rush:             shared.rush || '1.0',
+    support_filament: part.support_filament || '',
+    support_weight_g: part.support_weight_g || 0,
+    prep_model:       part.prep_model || 0,
+    prep_slice:       part.prep_slice || 0,
+    post_remove:      part.post_remove !== undefined ? part.post_remove : 2,
+    post_support:     part.post_support !== undefined ? part.post_support : 5,
+    post_extra:       part.post_extra || 0,
+    fin_sand:         part.fin_sand || 0,
+    fin_paint:        part.fin_paint || 0,
+    fin_hardware:     part.fin_hardware || 0,
+    fin_other:        part.fin_other || 0,
+    ship_pack:        0,
+    ship_cost:        0,
+    consumables:      part.consumables || 0,
+    quoted_price:     0
+  };
+}
+
+// Keep old function names working for compatibility
+function qPopulateFormSelects() {
+  // No-op — selects are now rendered per-part in qRenderActivePartForm
+}
+
+function qGetFormData() {
+  // Returns first part data merged with shared data for backwards compat
+  qSaveActivePartToState();
+  var shared = qGetSharedFormData();
+  var part = qFormParts[0] || qMakeEmptyPart();
+  var q = qBuildPartCalcObj(part, shared);
+  q.customer = shared.customer;
+  q.project = shared.project;
+  q.description = shared.description;
+  q.date = shared.date;
+  q.status = shared.status;
+  q.notes = shared.notes;
+  q.quoted_price = shared.quoted_price;
+  q.ship_pack = shared.ship_pack;
+  q.ship_cost = shared.ship_cost;
+  return q;
+}
+
 function qSetFormData(q) {
+  // Legacy: load a single-part quote into the form
   var s = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
   s('qf-customer', q.customer);
   s('qf-project', q.project || '');
@@ -5064,201 +5809,296 @@ function qSetFormData(q) {
   s('qf-status', q.status || 'Quoting');
   s('qf-rush', q.rush || '1.0');
   s('qf-notes', q.notes);
-  s('qf-printer', q.printer);
-  s('qf-filament', q.filament);
-  s('qf-weight', q.weight_g || 0);
-  s('qf-printtime', q.print_time);
-  s('qf-complexity', q.complexity || 1);
-  s('qf-qty', q.quantity || 1);
   s('qf-quoted', q.quoted_price || '');
-  s('qf-support-filament', q.support_filament || '');
-  s('qf-support-weight', q.support_weight_g || 0);
-  s('qf-prep-model', q.prep_model || 0);
-  s('qf-prep-slice', q.prep_slice || 0);
-  s('qf-post-remove', q.post_remove !== undefined ? q.post_remove : 2);
-  s('qf-post-support', q.post_support !== undefined ? q.post_support : 5);
-  s('qf-post-extra', q.post_extra || 0);
-  s('qf-fin-sand', q.fin_sand || 0);
-  s('qf-fin-paint', q.fin_paint || 0);
-  s('qf-fin-hardware', q.fin_hardware || 0);
-  s('qf-fin-other', q.fin_other || 0);
   s('qf-ship-pack', q.ship_pack || 0);
   s('qf-ship-cost', q.ship_cost || 0);
-  s('qf-consumables', q.consumables || 0);
+  // Load parts from line_items or single-part fields
+  if (q.line_items && q.line_items.length > 0) {
+    qFormParts = q.line_items.map(function(li) {
+      return {
+        filename: li.filename || '', printer: li.printer || '', filament: li.filament || '',
+        weight_g: li.weight_g || 0, print_time: li.print_time || '', complexity: li.complexity || 1,
+        quantity: li.quantity || 1, support_filament: li.support_filament || '', support_weight_g: li.support_weight_g || 0,
+        prep_model: li.prep_model || 0, prep_slice: li.prep_slice || 0,
+        post_remove: li.post_remove !== undefined ? li.post_remove : 2,
+        post_support: li.post_support !== undefined ? li.post_support : 5,
+        post_extra: li.post_extra || 0,
+        fin_sand: li.fin_sand || 0, fin_paint: li.fin_paint || 0,
+        fin_hardware: li.fin_hardware || 0, fin_other: li.fin_other || 0,
+        consumables: li.consumables || 0, job_id: li.job_id || null
+      };
+    });
+  } else {
+    // Single-part legacy quote
+    qFormParts = [{
+      filename: q.description || '', printer: q.printer || '', filament: q.filament || '',
+      weight_g: q.weight_g || 0, print_time: q.print_time || '', complexity: q.complexity || 1,
+      quantity: q.quantity || 1, support_filament: q.support_filament || '', support_weight_g: q.support_weight_g || 0,
+      prep_model: q.prep_model || 0, prep_slice: q.prep_slice || 0,
+      post_remove: q.post_remove !== undefined ? q.post_remove : 2,
+      post_support: q.post_support !== undefined ? q.post_support : 5,
+      post_extra: q.post_extra || 0,
+      fin_sand: q.fin_sand || 0, fin_paint: q.fin_paint || 0,
+      fin_hardware: q.fin_hardware || 0, fin_other: q.fin_other || 0,
+      consumables: q.consumables || 0, job_id: null
+    }];
+  }
+  qActivePartIdx = 0;
+  qRenderPartTabs();
+  qRenderActivePartForm();
   qUpdateQuoteCalc();
 }
 
 function qUpdateQuoteCalc() {
-  var q = qGetFormData();
-  if (!qState.settings || !qState.settings.materials) return;
-  var c = qCalcFromQuoteData(q);
+  var shared = qGetSharedFormData();
+  var rush = parseFloat(shared.rush) || 1.0;
+  var shipPack = parseFloat(shared.ship_pack) || 0;
+  var shipCost = parseFloat(shared.ship_cost) || 0;
+  var quotedOverride = parseFloat(shared.quoted_price) || 0;
+
+  var breakdownContainer = document.getElementById('q-part-breakdowns');
+  var breakdownHTML = '';
+  var totalCost = 0, totalSuggested = 0, totalQty = 0;
+  var allCalcs = [];
+
+  for (var i = 0; i < qFormParts.length; i++) {
+    var part = qFormParts[i];
+    var q = qBuildPartCalcObj(part, shared);
+    var c = qCalcFromQuoteData(q);
+    allCalcs.push(c);
+    totalCost += c.costTotal;
+    totalSuggested += c.suggested;
+    totalQty += Math.max(parseInt(part.quantity) || 1, 1);
+
+    var label = part.filename ? part.filename : 'Part ' + (i + 1);
+    if (label.length > 25) label = label.substring(0, 23) + '...';
+    var isOpen = i === qActivePartIdx;
+    breakdownHTML +=
+      '<div class="q-part-breakdown">' +
+        '<div class="q-part-breakdown-header" onclick="this.nextElementSibling.classList.toggle(\\\'open\\\')">' +
+          '<span style="color:var(--q-text)">' + label + ' <span style="color:var(--q-text3);font-size:10px">(qty ' + (part.quantity || 1) + ')</span></span>' +
+          '<span class="q-cost-row-value green">' + qCur(c.suggested) + '</span>' +
+        '</div>' +
+        '<div class="q-part-breakdown-body' + (isOpen ? ' open' : '') + '">' +
+          '<div class="q-cost-row"><span class="q-cost-row-label">Material</span><span class="q-cost-row-value">' + qCur(c.filamentCost + c.suppCost) + '</span></div>' +
+          '<div class="q-cost-row"><span class="q-cost-row-label">Machine</span><span class="q-cost-row-value">' + qCur(c.elecCost + c.deprCost) + '</span></div>' +
+          '<div class="q-cost-row"><span class="q-cost-row-label">Labor</span><span class="q-cost-row-value">' + qCur(c.prepLabor + c.postLabor) + '</span></div>' +
+          '<div class="q-cost-row"><span class="q-cost-row-label">Finishing</span><span class="q-cost-row-value">' + qCur(c.finishing) + '</span></div>' +
+          '<div class="q-cost-row"><span class="q-cost-row-label">Failure</span><span class="q-cost-row-value yellow">' + (c.fail * 100).toFixed(0) + '%</span></div>' +
+          '<div class="q-cost-row"><span class="q-cost-row-label">Cost/pc</span><span class="q-cost-row-value blue">' + qCur(c.costPP) + '</span></div>' +
+          '<div class="q-cost-row"><span class="q-cost-row-label">Markup</span><span class="q-cost-row-value">' + c.markup.toFixed(2) + 'x</span></div>' +
+        '</div>' +
+      '</div>';
+  }
+  breakdownContainer.innerHTML = breakdownHTML;
+
+  // Add shipping to totals
+  totalCost += shipPack + shipCost;
+  totalSuggested += shipPack + shipCost;
+
+  var totalProfit = quotedOverride > 0 ? Math.max(quotedOverride - totalCost, 0) : Math.max(totalSuggested - totalCost, 0);
+  var effectivePrice = quotedOverride > 0 ? quotedOverride : totalSuggested;
+  var totalMargin = effectivePrice > 0 ? Math.max((effectivePrice - totalCost) / effectivePrice, 0) : 0;
+
+  // Update combined totals
   var setText = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
-  setText('qp-filament',    qCur(c.filamentCost + c.suppCost));
-  setText('qp-elec',        qCur(c.elecCost));
-  setText('qp-depr',        qCur(c.deprCost));
-  setText('qp-consumables', qCur(c.consumables));
-  setText('qp-prep',        qCur(c.prepLabor));
-  setText('qp-post',        qCur(c.postLabor));
-  setText('qp-fin',         qCur(c.finishing));
-  setText('qp-ship',        qCur(c.shipping));
-  setText('qp-fail',        (c.fail * 100).toFixed(1) + '%');
-  setText('qp-costpc',      qCur(c.costPP));
-  setText('qp-markup',      c.markup.toFixed(2) + 'x');
-  setText('qp-suggested',   qCur(c.suggested));
-  setText('qp-quoted',      c.quoted > 0 ? qCur(c.quoted) : '\\u2014');
-  setText('qp-profitpc',    qCur(c.profitPP));
-  setText('qp-margin',      (c.margin * 100).toFixed(1) + '%');
-  setText('qp-totalprofit', qCur(c.totalProfit));
+  setText('qp-total-cost', qCur(totalCost));
+  setText('qp-total-suggested', qCur(totalSuggested));
+  setText('qp-total-quoted', quotedOverride > 0 ? qCur(quotedOverride) : '\\u2014');
+  setText('qp-total-margin', (totalMargin * 100).toFixed(0) + '%');
+  setText('qp-total-profit', qCur(totalProfit));
 
   // Alert if quoted below cost
-  var alertArea = document.getElementById('q-alert-area');
-  if (alertArea) {
-    if (c.quoted > 0 && c.quoted < c.costTotal) {
-      alertArea.innerHTML = '<div class="q-alert q-alert-danger">Quoted price (' + qCur(c.quoted) + ') is below total cost (' + qCur(c.costTotal) + ').</div>';
-    } else {
-      alertArea.innerHTML = '';
-    }
+  var alertEl = document.getElementById('q-quote-alert');
+  if (quotedOverride > 0 && quotedOverride < totalCost) {
+    alertEl.innerHTML = '<div class="q-alert q-alert-danger">Quoted price (' + qCur(quotedOverride) + ') is below total cost (' + qCur(totalCost) + ')</div>';
+  } else {
+    alertEl.innerHTML = '';
   }
 
-  // Pricing schedule
+  // Pricing schedule (combined across all parts)
   var schedBody = document.getElementById('qp-schedule-body');
-  if (schedBody) {
-    var qty = parseInt(q.quantity || 1);
-    schedBody.innerHTML = (c.schedule || []).map(function(row) {
-      var applicableQtys = c.schedule.filter(function(r) { return qty >= r.qty; }).map(function(r) { return r.qty; });
-      var maxApplicable = applicableQtys.length > 0 ? Math.max.apply(null, applicableQtys) : -1;
-      var isCurrent = (qty >= row.qty && row.qty === maxApplicable);
-      return '<tr' + (isCurrent ? ' style="background:var(--q-bg3)"' : '') + '>' +
-        '<td>' + (row.qty || 1) + '</td>' +
-        '<td class="q-td-right q-td-mono">' + qCur(row.pricePP) + '</td>' +
-        '<td class="q-td-right q-td-mono">' + qCur(row.total) + '</td>' +
-        '<td class="q-td-right q-td-mono">' + (row.margin * 100).toFixed(1) + '%</td>' +
-      '</tr>';
+  var tiers = (qState.settings.discounts || []).slice().sort(function(a, b) { return a.qty - b.qty; });
+  if (tiers.length > 0 && allCalcs.length > 0) {
+    schedBody.innerHTML = tiers.map(function(tier) {
+      var tierTotal = 0;
+      for (var j = 0; j < qFormParts.length; j++) {
+        var pc = allCalcs[j];
+        var pQty = Math.max(parseInt(qFormParts[j].quantity) || 1, 1);
+        var tierMarkup = Math.max(tier.markup, qState.settings.min_markup || 1.2) * rush;
+        tierTotal += Math.max(pc.costPP * pQty * tierMarkup, qState.settings.min_fee || 5);
+      }
+      tierTotal += shipPack + shipCost;
+      var tierPPU = totalQty > 0 ? tierTotal / totalQty : 0;
+      var tierMargin = tierTotal > 0 ? Math.max((tierTotal - totalCost) / tierTotal, 0) : 0;
+      var isActive = tier.qty <= totalQty;
+      var lastActive = tiers.filter(function(t) { return t.qty <= totalQty; });
+      var isCurrent = lastActive.length > 0 && tier.qty === lastActive[lastActive.length - 1].qty;
+      return '<tr' + (isCurrent ? ' style="background:var(--q-bg3);font-weight:600"' : '') + '>' +
+        '<td>' + Math.max(tier.qty, 1) + '+</td>' +
+        '<td>' + qCur(tierPPU) + '</td>' +
+        '<td>' + qCur(tierTotal) + '</td>' +
+        '<td>' + (tierMargin * 100).toFixed(0) + '%</td></tr>';
     }).join('');
+  } else {
+    schedBody.innerHTML = '';
   }
 }
 
 function qClearForm() {
   qCurrentEditSerial = null;
-  document.getElementById('q-page-title').textContent = 'New Quote';
-  document.getElementById('q-page-sub').textContent = 'Fill in the job details to generate a quote';
+  var titleEl = document.getElementById('q-quote-title');
+  var subEl = document.getElementById('q-quote-sub');
+  if (titleEl) titleEl.textContent = 'New Quote';
+  if (subEl) subEl.textContent = 'Fill in the job details and the cost preview updates live.';
   var today = new Date().toISOString().slice(0, 10);
-  qPopulateFormSelects();
-  qSetFormData({
-    date: today,
-    status: 'Quoting',
-    rush: '1.0',
-    complexity: 1,
-    quantity: 1,
-    post_remove: 2,
-    post_support: 5,
-    printer: (qState.settings.printers || [])[0] ? qState.settings.printers[0].name : '',
-    filament: (qState.settings.materials || [])[0] ? qState.settings.materials[0].name : ''
-  });
-  var alertArea = document.getElementById('q-alert-area');
-  if (alertArea) alertArea.innerHTML = '';
+  var s = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+  s('qf-customer', '');
+  s('qf-project', '');
+  s('qf-description', '');
+  s('qf-date', today);
+  s('qf-status', 'Quoting');
+  s('qf-rush', '1.0');
+  s('qf-notes', '');
+  s('qf-quoted', '');
+  s('qf-ship-pack', '0');
+  s('qf-ship-cost', '0');
+  qFormParts = [qMakeEmptyPart()];
+  qActivePartIdx = 0;
+  qRenderPartTabs();
+  qRenderActivePartForm();
+  qUpdateQuoteCalc();
+  var alertEl = document.getElementById('q-quote-alert');
+  if (alertEl) alertEl.innerHTML = '';
 }
 
 async function qLogFullQuote() {
-  var q = qGetFormData();
-  if (!q.customer) { alert('Please enter a customer name.'); return; }
-  if (!q.description) { alert('Please enter a description.'); return; }
+  qSaveActivePartToState();
+  var shared = qGetSharedFormData();
+  if (!shared.customer) { alert('Enter a customer name.'); return; }
 
-  var c = qCalcFromQuoteData(q);
+  // Build line_items from all parts
+  var lineItems = qFormParts.map(function(part) {
+    var q = qBuildPartCalcObj(part, shared);
+    var c = qCalcFromQuoteData(q);
+    return {
+      filename: part.filename || '', printer: part.printer, filament: part.filament,
+      weight_g: parseFloat(part.weight_g) || 0, print_time: part.print_time || '',
+      complexity: parseInt(part.complexity) || 1, quantity: parseInt(part.quantity) || 1,
+      support_filament: part.support_filament || '', support_weight_g: parseFloat(part.support_weight_g) || 0,
+      prep_model: parseFloat(part.prep_model) || 0, prep_slice: parseFloat(part.prep_slice) || 0,
+      post_remove: part.post_remove !== undefined ? parseFloat(part.post_remove) : 2,
+      post_support: part.post_support !== undefined ? parseFloat(part.post_support) : 5,
+      post_extra: parseFloat(part.post_extra) || 0,
+      fin_sand: parseFloat(part.fin_sand) || 0, fin_paint: parseFloat(part.fin_paint) || 0,
+      fin_hardware: parseFloat(part.fin_hardware) || 0, fin_other: parseFloat(part.fin_other) || 0,
+      consumables: parseFloat(part.consumables) || 0, job_id: part.job_id || null,
+      calc_cost_pp: c.costPP, calc_suggested: c.suggested, calc_margin: c.margin, calc_profit: c.totalProfit
+    };
+  });
 
-  // Ensure state is fresh
+  var totalCost = 0, totalSuggested = 0;
+  lineItems.forEach(function(li) { totalCost += li.calc_cost_pp * li.quantity; totalSuggested += li.calc_suggested; });
+  var shipTotal = (parseFloat(shared.ship_pack) || 0) + (parseFloat(shared.ship_cost) || 0);
+  totalCost += shipTotal;
+  totalSuggested += shipTotal;
+  var quotedOverride = parseFloat(shared.quoted_price) || 0;
+  var effectivePrice = quotedOverride > 0 ? quotedOverride : totalSuggested;
+  var totalMargin = effectivePrice > 0 ? (effectivePrice - totalCost) / effectivePrice : 0;
+  var totalProfit = effectivePrice - totalCost;
+
   await loadQuotingState();
 
   if (qCurrentEditSerial !== null) {
-    // Update existing quote
-    var idx = (qState.quotes || []).findIndex(function(x) { return x.serial === qCurrentEditSerial; });
-    if (idx < 0) { alert('Quote not found'); return; }
-    qState.quotes[idx] = Object.assign({}, qState.quotes[idx], q, {
-      updated_at: new Date().toISOString(),
-      calc_cost_pp: c.costPP,
-      calc_suggested: c.suggested,
-      calc_margin: c.margin,
-      calc_profit: c.totalProfit
-    });
-    await saveQuotingState();
-    alert('Quote #' + qFmtSerial(qCurrentEditSerial) + ' updated');
-    qCurrentEditSerial = null;
-    qClearForm();
-    showQTab('log');
-    return;
+    var idx = qState.quotes.findIndex(function(q) { return q.serial === qCurrentEditSerial; });
+    if (idx >= 0) {
+      Object.assign(qState.quotes[idx], {
+        customer: shared.customer, project: shared.project, description: shared.description,
+        date: shared.date, status: shared.status, rush: shared.rush, notes: shared.notes,
+        quoted_price: quotedOverride, ship_pack: parseFloat(shared.ship_pack) || 0, ship_cost: parseFloat(shared.ship_cost) || 0,
+        line_items: lineItems, updated: new Date().toISOString(),
+        calc_total_cost: totalCost, calc_total_suggested: totalSuggested,
+        calc_total_margin: totalMargin, calc_total_profit: totalProfit
+      });
+      await saveQuotingState();
+      alert('Quote #' + qFmtSerial(qCurrentEditSerial) + ' updated.');
+      qCurrentEditSerial = null;
+      qClearForm();
+      showQTab('log');
+      return;
+    }
   }
 
   // New quote
   var serial = qState.settings.next_serial || 1;
-  var quoteId = qFmtSerial(serial) + '-' + (q.date || '').replace(/-/g, '') + '-' + (q.customer || '').replace(/\\s/g, '').slice(0, 3).toUpperCase();
-  var entry = Object.assign({}, q, {
-    serial: serial,
-    quote_id: quoteId,
-    logged_at: new Date().toISOString(),
-    calc_cost_pp: c.costPP,
-    calc_suggested: c.suggested,
-    calc_margin: c.margin,
-    calc_profit: c.totalProfit
-  });
-
+  var dateStr = (shared.date || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+  var custInit = (shared.customer || 'X').substring(0, 3).toUpperCase();
+  var quoteId = serial + '-' + dateStr + '-' + custInit;
+  var entry = {
+    serial: serial, quote_id: quoteId,
+    customer: shared.customer, project: shared.project, description: shared.description,
+    date: shared.date, status: shared.status, rush: shared.rush, notes: shared.notes,
+    quoted_price: quotedOverride, ship_pack: parseFloat(shared.ship_pack) || 0, ship_cost: parseFloat(shared.ship_cost) || 0,
+    line_items: lineItems, created: new Date().toISOString(),
+    calc_total_cost: totalCost, calc_total_suggested: totalSuggested,
+    calc_total_margin: totalMargin, calc_total_profit: totalProfit
+  };
   qState.quotes.push(entry);
-  qState.settings.next_serial = serial + 1;
 
-  // Auto-create customer if new
-  var existingCust = (qState.customers || []).find(function(cx) { return (cx.name || '') === q.customer; });
-  if (!existingCust) {
+  // Auto-create customer
+  var custExists = (qState.customers || []).some(function(c) { return c.name === shared.customer; });
+  if (!custExists) {
     qState.customers = qState.customers || [];
-    qState.customers.push({ name: q.customer, created: new Date().toISOString() });
+    qState.customers.push({ name: shared.customer, created: new Date().toISOString() });
   }
-
+  qState.settings.next_serial = serial + 1;
   await saveQuotingState();
-  alert('Quote #' + qFmtSerial(serial) + ' logged for ' + q.customer + ' - ' + qCur(c.suggested));
+  alert('Quote #' + qFmtSerial(serial) + ' logged \\u2014 ' + qCur(totalSuggested));
   qCurrentEditSerial = null;
   qClearForm();
+  showQTab('log');
 }
 
 function prefillQuoteForm(qqItemsData) {
   if (!qqItemsData || qqItemsData.length === 0) return;
-  qPopulateFormSelects();
-  // Use first item for pre-fill
-  var item = qqItemsData[0];
-  var mat = qGetMaterial(item.filament);
-  var timeMult = mat ? (mat.time_multiplier || 1.0) : 1.0;
-  var weightMult = mat ? (mat.weight_multiplier || 1.0) : 1.0;
-  var adjWeight = (item.slicerData.base_weight_g || 0) * weightMult;
-  var adjTimeH = ((item.slicerData.base_time_minutes || 0) / 60) * timeMult;
   var customer = document.getElementById('qq-customer') ? document.getElementById('qq-customer').value : '';
-
   var today = new Date().toISOString().slice(0, 10);
+
+  // Build line_items from all qqItems
+  var parts = qqItemsData.map(function(item) {
+    var mat = qGetMaterial(item.filament);
+    var timeMult = mat ? (mat.time_multiplier || 1.0) : 1.0;
+    var weightMult = mat ? (mat.weight_multiplier || 1.0) : 1.0;
+    return {
+      filename:         item.slicerData.filename || '',
+      printer:          item.printer || '',
+      filament:         item.filament || '',
+      weight_g:         ((item.slicerData.base_weight_g || 0) * weightMult).toFixed(2),
+      print_time:       (((item.slicerData.base_time_minutes || 0) / 60) * timeMult).toFixed(2),
+      complexity:       item.slicerData.complexity || (mat ? mat.complexity : 1),
+      quantity:         item.quantity || 1,
+      support_filament: '',
+      support_weight_g: 0,
+      prep_model: 0, prep_slice: 0, post_remove: 2, post_support: 5, post_extra: 0,
+      fin_sand: 0, fin_paint: 0, fin_hardware: 0, fin_other: 0,
+      consumables: 0,
+      job_id: item.slicerData.job_id || null
+    };
+  });
+
+  // Build a quote-like object and load it
   qSetFormData({
     customer: customer,
-    description: item.slicerData.filename || '',
+    description: parts.length === 1 ? parts[0].filename : parts.length + ' parts from slicer',
     date: today,
     status: 'Quoting',
     rush: '1.0',
-    printer: item.printer,
-    filament: item.filament,
-    weight_g: adjWeight.toFixed(2),
-    print_time: adjTimeH.toFixed(2),
-    complexity: mat ? mat.complexity : 1,
-    quantity: item.quantity || 1,
-    post_remove: 2,
-    post_support: 5
+    notes: '',
+    quoted_price: '',
+    ship_pack: 0,
+    ship_cost: 0,
+    line_items: parts
   });
-
-  // If multiple items, add a note
-  if (qqItemsData.length > 1) {
-    var noteLines = qqItemsData.map(function(it, i) {
-      var m = qGetMaterial(it.filament);
-      var wm = m ? (m.weight_multiplier || 1.0) : 1.0;
-      var tm = m ? (m.time_multiplier || 1.0) : 1.0;
-      return (i + 1) + '. ' + (it.slicerData.filename || 'unknown') + ' (' + it.filament + ', ' +
-        ((it.slicerData.base_weight_g || 0) * wm).toFixed(1) + 'g, ' +
-        (((it.slicerData.base_time_minutes || 0) / 60) * tm).toFixed(2) + 'h)';
-    });
-    var notesEl = document.getElementById('qf-notes');
-    if (notesEl) notesEl.value = 'Multi-file quote from slicer:\\n' + noteLines.join('\\n');
-  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
