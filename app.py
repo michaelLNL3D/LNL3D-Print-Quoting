@@ -3947,6 +3947,88 @@ function renderQuickQuote() {
     totalsEl.style.display = 'none';
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   QUOTE LOGGING FROM QUICK QUOTE  (Task 8)
+═══════════════════════════════════════════════════════════════ */
+async function logQuickQuote() {
+  if (qqItems.length === 0) return;
+
+  const customerName = (document.getElementById('qq-customer').value || '').trim();
+  if (!customerName) {
+    alert('Please enter a customer name before logging the quote.');
+    return;
+  }
+
+  // Ensure state is fresh
+  await loadQuotingState();
+
+  const serial = qState.settings.next_serial || 1;
+  const quoteId = 'Q-' + qFmtSerial(serial);
+  const now = new Date().toISOString();
+
+  const lineItems = qqItems.map((item, idx) => {
+    const c = item.calc;
+    const mat = qGetMaterial(item.filament);
+    return {
+      filename:      item.slicerData.filename || 'unknown',
+      printer:       item.printer,
+      filament:      item.filament,
+      weight_g:      (item.slicerData.base_weight_g || 0) * ((mat && mat.weight_multiplier) || 1.0),
+      print_time:    String(((item.slicerData.base_time_minutes||0)/60) * ((mat && mat.time_multiplier) || 1.0)),
+      quantity:      item.quantity,
+      complexity:    mat ? mat.complexity : 1,
+      cost_per_piece: c.costPP,
+      price_per_piece: c.pricePP,
+      suggested:     c.suggested,
+      markup:        c.markup,
+      margin:        c.margin,
+      fail_rate:     c.fail,
+      job_id:        item.slicerData.job_id || null
+    };
+  });
+
+  let totalSuggested = 0;
+  lineItems.forEach(li => { totalSuggested += li.suggested; });
+
+  const quote = {
+    id:            quoteId,
+    serial:        serial,
+    customer:      customerName,
+    status:        'Quoting',
+    created:       now,
+    updated:       now,
+    line_items:    lineItems,
+    total_suggested: totalSuggested,
+    quoted_price:  0,
+    notes:         'Created via Quick Quote from slicer results',
+    rush:          1.0
+  };
+
+  qState.quotes.push(quote);
+  qState.settings.next_serial = serial + 1;
+
+  // Add customer if new
+  const existingCustomer = (qState.customers||[]).find(c => (c.name||c) === customerName);
+  if (!existingCustomer) {
+    qState.customers.push({ name: customerName, created: now });
+  }
+
+  await saveQuotingState();
+  closeQuickQuote();
+  alert('Quote ' + quoteId + ' logged for ' + customerName + ' — ' + qCur(totalSuggested));
+}
+
+function openFullQuoteForm() {
+  if (qqItems.length === 0) return;
+  closeQuickQuote();
+  showPhase('quoting');
+  showQTab('quote');
+  // If a prefillQuoteForm function exists (from a later task), call it
+  if (typeof prefillQuoteForm === 'function') {
+    prefillQuoteForm(qqItems);
+  }
+}
 </script>
 </body>
 </html>
