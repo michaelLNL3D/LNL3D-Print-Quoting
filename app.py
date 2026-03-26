@@ -1810,6 +1810,312 @@ HTML = """<!DOCTYPE html>
     border-color: var(--q-accent2);
     background: var(--q-bg2);
   }
+  .q-form-textarea {
+    background: var(--q-bg3);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-rad);
+    color: var(--q-text);
+    font-size: 13px;
+    padding: 8px 10px;
+    width: 100%;
+    font-family: var(--q-font-body);
+    min-height: 60px;
+    resize: vertical;
+  }
+  .q-form-textarea:focus {
+    outline: none;
+    border-color: var(--q-accent2);
+    background: var(--q-bg2);
+  }
+  .q-form-hint {
+    font-size: 11px;
+    color: var(--q-text3);
+  }
+
+  /* ── Settings Tab Styles ── */
+  #quoting-phase .q-settings-layout {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 20px;
+  }
+  #quoting-phase .q-settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  #quoting-phase .q-settings-nav-item {
+    background: none;
+    border: none;
+    color: var(--q-text2);
+    font-size: 13px;
+    font-family: var(--q-font-body);
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: var(--q-rad);
+    text-align: left;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  #quoting-phase .q-settings-nav-item:hover { background: var(--q-bg3); color: var(--q-text); }
+  #quoting-phase .q-settings-nav-item.active { background: var(--q-bg3); color: var(--q-accent2); }
+  #quoting-phase .q-settings-panel { display: none; }
+  #quoting-phase .q-settings-panel.active { display: block; }
+
+  /* ── Edit Tables (settings) ── */
+  #quoting-phase .q-edit-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  #quoting-phase .q-edit-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--q-text3);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--q-border);
+  }
+  #quoting-phase .q-edit-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--q-border);
+    vertical-align: middle;
+  }
+  #quoting-phase .q-edit-table input {
+    background: var(--q-bg3);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-rad);
+    color: var(--q-text);
+    font-size: 12px;
+    padding: 5px 8px;
+    width: 100%;
+    font-family: var(--q-font-body);
+  }
+  #quoting-phase .q-edit-table input:focus {
+    outline: none;
+    border-color: var(--q-accent2);
+  }
+
+  /* ── Dashboard Styles ── */
+  #quoting-phase .q-dash-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  #quoting-phase .q-stat-card {
+    background: var(--q-bg2);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-rad2);
+    padding: 16px 20px;
+  }
+  #quoting-phase .q-stat-card .q-stat-label {
+    font-size: 11px;
+    color: var(--q-text3);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 600;
+  }
+  #quoting-phase .q-stat-card .q-stat-value {
+    font-family: var(--q-font-mono);
+    font-size: 26px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+  #quoting-phase .q-stat-card .q-stat-sub {
+    font-size: 11px;
+    color: var(--q-text3);
+    margin-top: 2px;
+  }
+  #quoting-phase .q-stat-blue .q-stat-value { color: var(--q-accent2); }
+  #quoting-phase .q-stat-green .q-stat-value { color: var(--q-green); }
+  #quoting-phase .q-stat-yellow .q-stat-value { color: var(--q-yellow); }
+
+  /* ── Log Table Styles ── */
+  #quoting-phase .q-log-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  #quoting-phase .q-log-search {
+    flex: 1;
+    max-width: 350px;
+  }
+  #quoting-phase .q-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-rad2);
+    background: var(--q-bg2);
+  }
+  #quoting-phase .q-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  #quoting-phase .q-table-wrap th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--q-text3);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--q-border);
+    background: var(--q-bg3);
+    white-space: nowrap;
+  }
+  #quoting-phase .q-table-wrap td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--q-border);
+    vertical-align: middle;
+  }
+  #quoting-phase .q-table-wrap tr:hover { background: rgba(56,139,253,.04); }
+  #quoting-phase .q-td-right { text-align: right; }
+  #quoting-phase .q-td-center { text-align: center; }
+  #quoting-phase .q-td-mono { font-family: var(--q-font-mono); }
+  #quoting-phase .q-text-green { color: var(--q-green); }
+  #quoting-phase .q-text-yellow { color: var(--q-yellow); }
+  #quoting-phase .q-text-orange { color: var(--q-orange); }
+
+  /* ── Status Badges ── */
+  #quoting-phase .q-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  #quoting-phase .q-badge-quoting  { background: var(--q-bg4); color: var(--q-text2); }
+  #quoting-phase .q-badge-accepted { background: #0c2d6b; color: var(--q-accent2); }
+  #quoting-phase .q-badge-progress { background: #3d2c00; color: var(--q-yellow); }
+  #quoting-phase .q-badge-complete { background: #0d3320; color: var(--q-green); }
+  #quoting-phase .q-badge-declined { background: #3d0c0a; color: var(--q-red); }
+
+  /* ── Empty State ── */
+  #quoting-phase .q-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--q-text3);
+  }
+  #quoting-phase .q-empty-icon { font-size: 36px; margin-bottom: 10px; }
+  #quoting-phase .q-empty-title { font-size: 16px; font-weight: 600; color: var(--q-text2); margin-bottom: 6px; }
+
+  /* ── Customer Modal ── */
+  #quoting-phase .q-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  #quoting-phase .q-modal-overlay.open { display: flex; }
+  #quoting-phase .q-modal {
+    background: var(--q-bg2);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-rad2);
+    padding: 24px;
+    width: 480px;
+    max-width: 90vw;
+    box-shadow: var(--q-shadow);
+  }
+  #quoting-phase .q-modal-title {
+    font-family: var(--q-font-head);
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Quote Form Layout ── */
+  #quoting-phase .q-quote-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+  #quoting-phase .q-quote-sidebar {
+    position: sticky;
+    top: 70px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #quoting-phase .q-form-section {
+    font-family: var(--q-font-head);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--q-text2);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin: 20px 0 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--q-border);
+  }
+  #quoting-phase .q-form-section:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+  #quoting-phase .q-form-row {
+    display: grid;
+    gap: 12px;
+  }
+  #quoting-phase .q-form-row-2 { grid-template-columns: 1fr 1fr; }
+  #quoting-phase .q-form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  #quoting-phase .q-form-row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  /* ── Cost Preview Sidebar ── */
+  #quoting-phase .q-cost-preview {
+    background: var(--q-bg2);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-rad2);
+    overflow: hidden;
+  }
+  #quoting-phase .q-cost-preview-header {
+    padding: 12px 16px;
+    font-family: var(--q-font-head);
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--q-text2);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    background: var(--q-bg3);
+    border-bottom: 1px solid var(--q-border);
+  }
+  #quoting-phase .q-cost-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 16px;
+    font-size: 12px;
+  }
+  #quoting-phase .q-cost-row-label { color: var(--q-text2); }
+  #quoting-phase .q-cost-row-value { font-family: var(--q-font-mono); font-weight: 500; color: var(--q-text); }
+  #quoting-phase .q-cost-row-value.green { color: var(--q-green); }
+  #quoting-phase .q-cost-row-value.blue { color: var(--q-accent2); }
+  #quoting-phase .q-cost-row-value.orange { color: var(--q-orange); }
+  #quoting-phase .q-cost-row-value.yellow { color: var(--q-yellow); }
+  #quoting-phase .q-cost-row.total { background: var(--q-bg3); font-weight: 600; }
+  #quoting-phase .q-cost-row.highlight { padding: 8px 16px; }
+
+  /* ── Alert ── */
+  #quoting-phase .q-alert {
+    padding: 10px 14px;
+    border-radius: var(--q-rad);
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  #quoting-phase .q-alert-danger { background: #3d0c0a; color: var(--q-red); border: 1px solid #6e201c; }
+  #quoting-phase .q-alert-info   { background: #0c2d6b; color: var(--q-accent2); border: 1px solid #1a4fa0; }
+  #quoting-phase .q-alert-success { background: #0d3320; color: var(--q-green); border: 1px solid #238636; }
+
+  /* ── Flex helpers ── */
+  #quoting-phase .q-flex-between { display: flex; justify-content: space-between; align-items: center; }
+  #quoting-phase .q-mb-16 { margin-bottom: 16px; }
+  #quoting-phase .q-mt-8 { margin-top: 8px; }
+  #quoting-phase .q-btn-danger { background: #3d0c0a; color: var(--q-red); border: 1px solid #6e201c; }
+  #quoting-phase .q-btn-danger:hover { background: #6e201c; }
+  #quoting-phase .q-btn-lg { padding: 10px 24px; font-size: 14px; }
 
   /* ═══════════════════════════════════════════════════════════════
      QUICK QUOTE OVERLAY (Task 6)
@@ -3608,20 +3914,313 @@ setInterval(() => {
     </div>
   </div>
   <div class="q-main">
+    <!-- ══════════════════ DASHBOARD TAB ══════════════════ -->
     <div id="qtab-dashboard" class="q-tab-content active">
-      <div class="q-card"><div class="q-card-header">Dashboard</div><p style="color:var(--q-text2)">Dashboard coming soon.</p></div>
+      <div class="q-flex-between q-mb-16">
+        <div>
+          <h1 style="font-family:var(--q-font-head);font-size:22px;font-weight:800">Overview</h1>
+          <p style="color:var(--q-text2);font-size:13px;margin-top:3px">Your quoting activity at a glance</p>
+        </div>
+        <button class="q-btn q-btn-primary" onclick="showQTab('quote')">+ New Quote</button>
+      </div>
+      <div class="q-dash-stats" id="q-dash-stats"></div>
+      <div class="q-card" style="margin-top:14px">
+        <div class="q-card-header">Recent Quotes</div>
+        <div class="q-table-wrap" style="border:none">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Customer</th><th>Description</th>
+              <th>Status</th><th class="q-td-right">Suggested</th><th class="q-td-right">Quoted</th><th>Date</th>
+            </tr></thead>
+            <tbody id="q-dash-recent-body"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
+
+    <!-- ══════════════════ NEW QUOTE TAB ══════════════════ -->
     <div id="qtab-quote" class="q-tab-content">
-      <div class="q-card"><div class="q-card-header">New Quote</div><p style="color:var(--q-text2)">Full quote form coming soon.</p></div>
+      <div class="q-flex-between q-mb-16">
+        <div>
+          <h1 style="font-family:var(--q-font-head);font-size:22px;font-weight:800" id="q-page-title">New Quote</h1>
+          <p style="color:var(--q-text2);font-size:13px;margin-top:3px" id="q-page-sub">Fill in the job details to generate a quote</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="q-btn q-btn-ghost" onclick="qClearForm()">&#8634; Clear</button>
+          <button class="q-btn q-btn-success q-btn-lg" onclick="qLogFullQuote()">&#10003; Log Quote</button>
+        </div>
+      </div>
+      <div id="q-alert-area"></div>
+      <div class="q-quote-layout">
+        <!-- Left: form -->
+        <div class="q-card" style="gap:0;padding:24px">
+          <div class="q-form-section" style="margin-top:0;border-top:none;padding-top:0">Customer Details</div>
+          <div class="q-form-row q-form-row-3">
+            <div class="q-form-group"><label class="q-form-label">Customer Name</label><input class="q-form-input" id="qf-customer" placeholder="e.g. Acme Corp" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Project Title</label><input class="q-form-input" id="qf-project" placeholder="e.g. Drone Frame v2" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Description</label><input class="q-form-input" id="qf-description" placeholder="e.g. Fan Motor Mount" oninput="qUpdateQuoteCalc()"></div>
+          </div>
+          <div class="q-form-row q-form-row-4" style="margin-top:12px">
+            <div class="q-form-group"><label class="q-form-label">Date</label><input class="q-form-input" type="date" id="qf-date" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Job Status</label>
+              <select class="q-form-select" id="qf-status">
+                <option>Quoting</option><option>Accepted</option><option>In Progress</option><option>Complete</option><option>Declined</option>
+              </select>
+            </div>
+            <div class="q-form-group"><label class="q-form-label">Rush Multiplier</label>
+              <select class="q-form-select" id="qf-rush" onchange="qUpdateQuoteCalc()">
+                <option value="1.0">1.0x Standard</option><option value="1.25">1.25x Light Rush</option>
+                <option value="1.5">1.5x Rush</option><option value="1.75">1.75x Priority</option><option value="2.0">2.0x Urgent</option>
+              </select>
+            </div>
+            <div class="q-form-group"><label class="q-form-label">Quantity</label><input class="q-form-input" type="number" id="qf-qty" value="1" min="1" oninput="qUpdateQuoteCalc()"></div>
+          </div>
+
+          <div class="q-form-section">Print Details</div>
+          <div class="q-form-row q-form-row-3">
+            <div class="q-form-group"><label class="q-form-label">Printer</label><select class="q-form-select" id="qf-printer" onchange="qUpdateQuoteCalc()"></select></div>
+            <div class="q-form-group"><label class="q-form-label">Filament</label><select class="q-form-select" id="qf-filament" onchange="qUpdateQuoteCalc()"></select></div>
+            <div class="q-form-group"><label class="q-form-label">Weight (g)</label><input class="q-form-input" type="number" id="qf-weight" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+          </div>
+          <div class="q-form-row q-form-row-3" style="margin-top:12px">
+            <div class="q-form-group"><label class="q-form-label">Print Time</label><input class="q-form-input" id="qf-printtime" placeholder="5:47 or 5.78" oninput="qUpdateQuoteCalc()"><span class="q-form-hint">hh:mm or decimal hours</span></div>
+            <div class="q-form-group"><label class="q-form-label">Complexity (1-10)</label>
+              <select class="q-form-select" id="qf-complexity" onchange="qUpdateQuoteCalc()">
+                <option value="1">1 - Very Simple</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                <option value="5">5 - Moderate</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                <option value="9">9</option><option value="10">10 - Very Complex</option>
+              </select>
+            </div>
+            <div class="q-form-group"><label class="q-form-label">Quoted Price (opt)</label><input class="q-form-input" type="number" id="qf-quoted" placeholder="Leave blank = suggested" min="0" step="0.01" oninput="qUpdateQuoteCalc()"><span class="q-form-hint">Overrides suggested price</span></div>
+          </div>
+
+          <div class="q-form-section">Secondary Material</div>
+          <div class="q-form-row q-form-row-2">
+            <div class="q-form-group"><label class="q-form-label">Support Filament</label><select class="q-form-select" id="qf-support-filament" onchange="qUpdateQuoteCalc()"><option value="">None</option></select></div>
+            <div class="q-form-group"><label class="q-form-label">Support Weight (g)</label><input class="q-form-input" type="number" id="qf-support-weight" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+          </div>
+
+          <div class="q-form-section">Labor</div>
+          <div class="q-form-row q-form-row-3">
+            <div class="q-form-group"><label class="q-form-label">Model Prep (min)</label><input class="q-form-input" type="number" id="qf-prep-model" value="0" min="0" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Slicing (min)</label><input class="q-form-input" type="number" id="qf-prep-slice" value="0" min="0" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Job Removal (min)</label><input class="q-form-input" type="number" id="qf-post-remove" value="2" min="0" oninput="qUpdateQuoteCalc()"></div>
+          </div>
+          <div class="q-form-row q-form-row-2" style="margin-top:12px">
+            <div class="q-form-group"><label class="q-form-label">Support Removal (min)</label><input class="q-form-input" type="number" id="qf-post-support" value="5" min="0" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Additional Post Work (min)</label><input class="q-form-input" type="number" id="qf-post-extra" value="0" min="0" oninput="qUpdateQuoteCalc()"></div>
+          </div>
+
+          <div class="q-form-section">Finishing Materials</div>
+          <div class="q-form-row q-form-row-4">
+            <div class="q-form-group"><label class="q-form-label">Sanding ($)</label><input class="q-form-input" type="number" id="qf-fin-sand" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Primer/Paint ($)</label><input class="q-form-input" type="number" id="qf-fin-paint" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Hardware Inserts ($)</label><input class="q-form-input" type="number" id="qf-fin-hardware" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Other Finishing ($)</label><input class="q-form-input" type="number" id="qf-fin-other" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+          </div>
+
+          <div class="q-form-section">Shipping &amp; Misc</div>
+          <div class="q-form-row q-form-row-3">
+            <div class="q-form-group"><label class="q-form-label">Packaging ($)</label><input class="q-form-input" type="number" id="qf-ship-pack" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Shipping ($)</label><input class="q-form-input" type="number" id="qf-ship-cost" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+            <div class="q-form-group"><label class="q-form-label">Consumables ($)</label><input class="q-form-input" type="number" id="qf-consumables" value="0" min="0" step="0.01" oninput="qUpdateQuoteCalc()"></div>
+          </div>
+
+          <div class="q-form-group" style="margin-top:16px">
+            <label class="q-form-label">Notes</label>
+            <textarea class="q-form-textarea" id="qf-notes" placeholder="Any additional notes..."></textarea>
+          </div>
+        </div>
+
+        <!-- Right: sidebar -->
+        <div class="q-quote-sidebar">
+          <div class="q-cost-preview">
+            <div class="q-cost-preview-header">Live Cost Breakdown</div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Filament</span><span class="q-cost-row-value" id="qp-filament">$0.00</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Electricity</span><span class="q-cost-row-value" id="qp-elec">$0.00</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Depreciation</span><span class="q-cost-row-value" id="qp-depr">$0.00</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Consumables</span><span class="q-cost-row-value" id="qp-consumables">$0.00</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Prep Labor</span><span class="q-cost-row-value" id="qp-prep">$0.00</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Post Labor</span><span class="q-cost-row-value" id="qp-post">$0.00</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Finishing</span><span class="q-cost-row-value" id="qp-fin">$0.00</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Shipping</span><span class="q-cost-row-value" id="qp-ship">$0.00</span></div>
+            <div class="q-cost-row" style="border-top:2px solid var(--q-border2)"><span class="q-cost-row-label" style="font-size:11px;text-transform:uppercase">Fail Rate</span><span class="q-cost-row-value yellow" id="qp-fail">0.0%</span></div>
+            <div class="q-cost-row total"><span class="q-cost-row-label">Cost / pc</span><span class="q-cost-row-value blue" id="qp-costpc">$0.00</span></div>
+            <div class="q-cost-row total"><span class="q-cost-row-label">Markup</span><span class="q-cost-row-value" id="qp-markup">2.40x</span></div>
+            <div class="q-cost-row highlight" style="background:#0d3320;border-top:2px solid var(--q-border2)"><span class="q-cost-row-label" style="color:var(--q-green);font-weight:700">Suggested</span><span class="q-cost-row-value green" id="qp-suggested" style="font-size:15px;font-weight:700">$0.00</span></div>
+            <div class="q-cost-row" style="background:#1a0a00"><span class="q-cost-row-label" style="color:var(--q-orange)">Quoted Price</span><span class="q-cost-row-value orange" id="qp-quoted" style="font-size:15px;font-weight:700">&mdash;</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Profit / pc</span><span class="q-cost-row-value green" id="qp-profitpc">$0.00</span></div>
+            <div class="q-cost-row"><span class="q-cost-row-label">Margin</span><span class="q-cost-row-value green" id="qp-margin">0.0%</span></div>
+            <div class="q-cost-row total"><span class="q-cost-row-label">Total Profit</span><span class="q-cost-row-value green" id="qp-totalprofit">$0.00</span></div>
+          </div>
+          <div class="q-card" style="padding:0;overflow:hidden">
+            <div class="q-cost-preview-header">Pricing Schedule</div>
+            <div class="q-table-wrap" style="border:none;border-radius:0">
+              <table><thead><tr><th>Qty</th><th class="q-td-right">Price/pc</th><th class="q-td-right">Total</th><th class="q-td-right">Margin</th></tr></thead>
+              <tbody id="qp-schedule-body"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- ══════════════════ QUOTE LOG TAB ══════════════════ -->
     <div id="qtab-log" class="q-tab-content">
-      <div class="q-card"><div class="q-card-header">Quote Log</div><p style="color:var(--q-text2)">Quote log coming soon.</p></div>
+      <div class="q-flex-between q-mb-16">
+        <div>
+          <h1 style="font-family:var(--q-font-head);font-size:22px;font-weight:800">Quote Log</h1>
+          <p style="color:var(--q-text2);font-size:13px;margin-top:3px">All logged quotes</p>
+        </div>
+      </div>
+      <div class="q-log-toolbar">
+        <input class="q-form-input q-log-search" id="q-log-search" placeholder="Search customer, description..." oninput="qRenderQuoteLog()">
+        <select class="q-form-select" id="q-log-filter-status" style="width:160px" onchange="qRenderQuoteLog()">
+          <option value="">All Statuses</option>
+          <option>Quoting</option><option>Accepted</option><option>In Progress</option><option>Complete</option><option>Declined</option>
+        </select>
+      </div>
+      <div class="q-table-wrap" id="q-log-table-wrap">
+        <table id="q-log-table">
+          <thead><tr>
+            <th>#</th><th>Quote ID</th><th>Date</th><th>Customer</th>
+            <th>Description</th><th>Status</th><th>Qty</th>
+            <th class="q-td-right">Suggested</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="q-log-body"></tbody>
+        </table>
+      </div>
+      <div id="q-log-empty" class="q-empty-state" style="display:none">
+        <div class="q-empty-icon">&#8801;</div>
+        <div class="q-empty-title">No quotes logged yet</div>
+        <p>Go to New Quote to create and log your first quote.</p>
+      </div>
     </div>
+
+    <!-- ══════════════════ CUSTOMERS TAB ══════════════════ -->
     <div id="qtab-customers" class="q-tab-content">
-      <div class="q-card"><div class="q-card-header">Customers</div><p style="color:var(--q-text2)">Customers tab coming soon.</p></div>
+      <div class="q-flex-between q-mb-16">
+        <div>
+          <h1 style="font-family:var(--q-font-head);font-size:22px;font-weight:800">Customers</h1>
+          <p style="color:var(--q-text2);font-size:13px;margin-top:3px">Contact list</p>
+        </div>
+        <button class="q-btn q-btn-primary" onclick="qOpenCustomerModal()">+ Add Customer</button>
+      </div>
+      <div style="margin-bottom:14px">
+        <input class="q-form-input" id="q-cust-search" placeholder="Search name, company, email..." style="max-width:350px" oninput="qRenderCustomers()">
+      </div>
+      <div class="q-table-wrap" id="q-cust-table-wrap">
+        <table id="q-cust-table">
+          <thead><tr>
+            <th>Name</th><th>Company</th><th>Email</th><th>Phone</th>
+            <th>Notes</th><th>Created</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="q-cust-body"></tbody>
+        </table>
+      </div>
+      <div id="q-cust-empty" class="q-empty-state" style="display:none">
+        <div class="q-empty-icon">&#9672;</div>
+        <div class="q-empty-title">No customers yet</div>
+        <p>Add a customer or they will be created automatically when you log a quote.</p>
+      </div>
     </div>
+
+    <!-- Customer Modal -->
+    <div class="q-modal-overlay" id="q-cust-modal">
+      <div class="q-modal">
+        <div class="q-modal-title" id="q-cust-modal-title">Add Customer</div>
+        <input type="hidden" id="q-cust-modal-idx">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="q-form-group"><label class="q-form-label">Name</label><input class="q-form-input" id="q-cust-modal-name"></div>
+          <div class="q-form-group"><label class="q-form-label">Company</label><input class="q-form-input" id="q-cust-modal-company"></div>
+          <div class="q-form-group"><label class="q-form-label">Email</label><input class="q-form-input" id="q-cust-modal-email" type="email"></div>
+          <div class="q-form-group"><label class="q-form-label">Phone</label><input class="q-form-input" id="q-cust-modal-phone"></div>
+          <div class="q-form-group"><label class="q-form-label">Notes</label><textarea class="q-form-textarea" id="q-cust-modal-notes"></textarea></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+            <button class="q-btn q-btn-ghost" onclick="document.getElementById('q-cust-modal').classList.remove('open')">Cancel</button>
+            <button class="q-btn q-btn-success" onclick="qSaveCustomerModal()">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ SETTINGS TAB ══════════════════ -->
     <div id="qtab-settings" class="q-tab-content">
-      <div class="q-card"><div class="q-card-header">Settings</div><p style="color:var(--q-text2)">Settings tab coming soon.</p></div>
+      <div class="q-flex-between q-mb-16">
+        <div>
+          <h1 style="font-family:var(--q-font-head);font-size:22px;font-weight:800">Settings</h1>
+          <p style="color:var(--q-text2);font-size:13px;margin-top:3px">Configure your shop rates, printers, and materials</p>
+        </div>
+        <button class="q-btn q-btn-success" onclick="qSaveSettings()">&#10003; Save All Settings</button>
+      </div>
+      <div class="q-settings-layout">
+        <div class="q-settings-nav">
+          <button class="q-settings-nav-item active" onclick="qShowSettingsPanel('rates')">Shop Rates</button>
+          <button class="q-settings-nav-item" onclick="qShowSettingsPanel('discounts')">Qty Discounts</button>
+          <button class="q-settings-nav-item" onclick="qShowSettingsPanel('printers')">Printers</button>
+          <button class="q-settings-nav-item" onclick="qShowSettingsPanel('materials')">Materials</button>
+          <button class="q-settings-nav-item" onclick="qShowSettingsPanel('data')">Data</button>
+        </div>
+        <div>
+          <!-- Rates panel -->
+          <div class="q-settings-panel active q-card" id="qpanel-rates">
+            <div class="q-card-header">Shop Rates</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div class="q-form-group"><label class="q-form-label">Company Name</label><input class="q-form-input" id="qs-company" type="text"></div>
+              <div class="q-form-group"><label class="q-form-label">Currency Symbol</label><input class="q-form-input" id="qs-currency" type="text" style="width:80px"></div>
+              <div class="q-form-group"><label class="q-form-label">Energy Cost ($/kWh)</label><input class="q-form-input" id="qs-energy" type="number" step="0.01"></div>
+              <div class="q-form-group"><label class="q-form-label">Skilled Labor Rate ($/h)</label><input class="q-form-input" id="qs-skilled" type="number" step="0.01"></div>
+              <div class="q-form-group"><label class="q-form-label">Post-Process Labor Rate ($/h)</label><input class="q-form-input" id="qs-postprocess" type="number" step="0.01"></div>
+              <div class="q-form-group"><label class="q-form-label">Min Job Fee ($)</label><input class="q-form-input" id="qs-minfee" type="number" step="0.01"></div>
+              <div class="q-form-group"><label class="q-form-label">Base Failure Rate (%)</label><input class="q-form-input" id="qs-basefail" type="number" step="0.1"></div>
+              <div class="q-form-group"><label class="q-form-label">Max Failure Rate Cap (%)</label><input class="q-form-input" id="qs-maxfail" type="number" step="0.1"></div>
+              <div class="q-form-group"><label class="q-form-label">Min Markup Floor (x)</label><input class="q-form-input" id="qs-minmarkup" type="number" step="0.01"></div>
+            </div>
+          </div>
+          <!-- Discounts panel -->
+          <div class="q-settings-panel q-card" id="qpanel-discounts">
+            <div class="q-card-header">Quantity Discount Tiers</div>
+            <table class="q-edit-table" id="q-discounts-table">
+              <thead><tr><th>Min Quantity</th><th>Markup (x)</th><th>Over Cost</th><th></th></tr></thead>
+              <tbody id="q-discounts-body"></tbody>
+            </table>
+            <button class="q-btn q-btn-ghost q-btn-sm q-mt-8" onclick="qAddDiscountRow()">+ Add Tier</button>
+          </div>
+          <!-- Printers panel -->
+          <div class="q-settings-panel q-card" id="qpanel-printers">
+            <div class="q-card-header">Printers</div>
+            <table class="q-edit-table" id="q-printers-table">
+              <thead><tr><th>Name</th><th>Price ($)</th><th>Life (h)</th><th>Service ($)</th><th>Energy (kWh/h)</th><th>Depr ($/h)</th><th></th></tr></thead>
+              <tbody id="q-printers-body"></tbody>
+            </table>
+            <button class="q-btn q-btn-ghost q-btn-sm q-mt-8" onclick="qAddPrinterRow()">+ Add Printer</button>
+          </div>
+          <!-- Materials panel -->
+          <div class="q-settings-panel q-card" id="qpanel-materials">
+            <div class="q-card-header">Materials</div>
+            <div style="overflow-x:auto">
+            <table class="q-edit-table" id="q-materials-table">
+              <thead><tr><th style="min-width:140px">Name</th><th>Complexity</th><th>Spool ($)</th><th>Spool (kg)</th><th>Density</th><th>Time Mult</th><th>Weight Mult</th><th>$/kg</th><th></th></tr></thead>
+              <tbody id="q-materials-body"></tbody>
+            </table>
+            </div>
+            <button class="q-btn q-btn-ghost q-btn-sm q-mt-8" onclick="qAddMaterialRow()">+ Add Material</button>
+          </div>
+          <!-- Data panel -->
+          <div class="q-settings-panel q-card" id="qpanel-data">
+            <div class="q-card-header">Data Management</div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div class="q-alert q-alert-info">Your quotes are stored on the server in JSON files. Export a backup regularly.</div>
+              <div style="display:flex;gap:8px">
+                <button class="q-btn q-btn-ghost" onclick="qExportData()">Export All Data (JSON)</button>
+                <label class="q-btn q-btn-ghost" style="cursor:pointer">
+                  Import Data (JSON)
+                  <input type="file" accept=".json" onchange="qImportData(event)" style="display:none">
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div><!-- /quoting-phase -->
@@ -3649,6 +4248,12 @@ function showQTab(tab) {
   if (content) content.classList.add('active');
   const navBtn = document.querySelector('.q-nav-tab[data-qtab="' + tab + '"]');
   if (navBtn) navBtn.classList.add('active');
+  // Render tab content
+  if (tab === 'dashboard')  qRenderDashboard();
+  if (tab === 'quote')      { qPopulateFormSelects(); qUpdateQuoteCalc(); }
+  if (tab === 'log')        qRenderQuoteLog();
+  if (tab === 'customers')  qRenderCustomers();
+  if (tab === 'settings')   qRenderSettings();
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -4032,6 +4637,636 @@ function openFullQuoteForm() {
     prefillQuoteForm(qqItems);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   SETTINGS TAB LOGIC  (Task 9)
+═══════════════════════════════════════════════════════════════ */
+function qShowSettingsPanel(panel) {
+  document.querySelectorAll('#qtab-settings .q-settings-panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('#qtab-settings .q-settings-nav-item').forEach(el => el.classList.remove('active'));
+  var p = document.getElementById('qpanel-' + panel);
+  if (p) p.classList.add('active');
+  // Highlight nav item
+  var btns = document.querySelectorAll('#qtab-settings .q-settings-nav-item');
+  var map = {rates:0, discounts:1, printers:2, materials:3, data:4};
+  if (btns[map[panel]]) btns[map[panel]].classList.add('active');
+}
+
+function qRenderSettings() {
+  var s = qState.settings;
+  if (!s || !s.materials) return;
+  var el = function(id) { return document.getElementById(id); };
+  el('qs-company').value     = s.company || 'LNL3D';
+  el('qs-currency').value    = s.currency || '$';
+  el('qs-energy').value      = s.energy || 0.26;
+  el('qs-skilled').value     = s.skilled_labor || 22;
+  el('qs-postprocess').value = s.postprocess_labor || 22;
+  el('qs-minfee').value      = s.min_fee || 5;
+  el('qs-basefail').value    = ((s.base_fail || 0.1) * 100).toFixed(1);
+  el('qs-maxfail').value     = ((s.max_fail || 0.5) * 100).toFixed(1);
+  el('qs-minmarkup').value   = s.min_markup || 1.2;
+
+  // Discounts
+  var db = document.getElementById('q-discounts-body');
+  db.innerHTML = (s.discounts||[]).map(function(d, i) {
+    return '<tr>' +
+      '<td><input type="number" value="' + d.qty + '" onchange="qState.settings.discounts[' + i + '].qty=parseInt(this.value)||0"></td>' +
+      '<td><input type="number" value="' + d.markup + '" step="0.01" onchange="qState.settings.discounts[' + i + '].markup=parseFloat(this.value)||1.0"></td>' +
+      '<td style="color:var(--q-text3);font-size:12px">' + (((d.markup - 1) * 100).toFixed(0)) + '%</td>' +
+      '<td><button class="q-btn q-btn-danger q-btn-sm" onclick="qRemoveDiscountRow(' + i + ')">&#10005;</button></td>' +
+    '</tr>';
+  }).join('');
+
+  // Printers
+  var pb = document.getElementById('q-printers-body');
+  pb.innerHTML = (s.printers||[]).map(function(p, i) {
+    var depr = p.life > 0 ? ((p.price + p.service) / p.life).toFixed(4) : '0';
+    return '<tr>' +
+      '<td><input value="' + (p.name||'') + '" onchange="qState.settings.printers[' + i + '].name=this.value"></td>' +
+      '<td><input type="number" value="' + p.price + '" onchange="qState.settings.printers[' + i + '].price=parseFloat(this.value)||0"></td>' +
+      '<td><input type="number" value="' + p.life + '" onchange="qState.settings.printers[' + i + '].life=parseFloat(this.value)||1"></td>' +
+      '<td><input type="number" value="' + p.service + '" onchange="qState.settings.printers[' + i + '].service=parseFloat(this.value)||0"></td>' +
+      '<td><input type="number" value="' + p.energy + '" step="0.01" onchange="qState.settings.printers[' + i + '].energy=parseFloat(this.value)||0"></td>' +
+      '<td style="color:var(--q-text3);font-size:12px;font-family:var(--q-font-mono)">' + depr + '</td>' +
+      '<td><button class="q-btn q-btn-danger q-btn-sm" onclick="qRemovePrinterRow(' + i + ')">&#10005;</button></td>' +
+    '</tr>';
+  }).join('');
+
+  // Materials
+  var mb = document.getElementById('q-materials-body');
+  mb.innerHTML = (s.materials||[]).map(function(m, i) {
+    var perkg = m.spool_kg > 0 ? (m.spool_price / m.spool_kg).toFixed(2) : '0.00';
+    return '<tr>' +
+      '<td><input value="' + (m.name||'') + '" onchange="qState.settings.materials[' + i + '].name=this.value" style="min-width:130px"></td>' +
+      '<td><input type="number" value="' + (m.complexity||1) + '" min="1" max="10" onchange="qState.settings.materials[' + i + '].complexity=parseInt(this.value)||1"></td>' +
+      '<td><input type="number" value="' + (m.spool_price||0) + '" onchange="qState.settings.materials[' + i + '].spool_price=parseFloat(this.value)||0;qRenderSettings()"></td>' +
+      '<td><input type="number" value="' + (m.spool_kg||1) + '" step="0.1" onchange="qState.settings.materials[' + i + '].spool_kg=parseFloat(this.value)||1;qRenderSettings()"></td>' +
+      '<td><input type="number" value="' + (m.density||1.24) + '" step="0.01" onchange="qState.settings.materials[' + i + '].density=parseFloat(this.value)||1"></td>' +
+      '<td><input type="number" value="' + (m.time_multiplier||1.0) + '" step="0.01" onchange="qState.settings.materials[' + i + '].time_multiplier=parseFloat(this.value)||1.0"></td>' +
+      '<td><input type="number" value="' + (m.weight_multiplier||1.0) + '" step="0.01" onchange="qState.settings.materials[' + i + '].weight_multiplier=parseFloat(this.value)||1.0"></td>' +
+      '<td style="color:var(--q-green);font-size:12px;font-weight:600;font-family:var(--q-font-mono)">' + qCur(perkg) + '/kg</td>' +
+      '<td><button class="q-btn q-btn-danger q-btn-sm" onclick="qRemoveMaterialRow(' + i + ')">&#10005;</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function qAddDiscountRow() {
+  qState.settings.discounts = qState.settings.discounts || [];
+  qState.settings.discounts.push({qty: 0, markup: 1.5});
+  qRenderSettings();
+}
+function qRemoveDiscountRow(i) {
+  qState.settings.discounts.splice(i, 1);
+  qRenderSettings();
+}
+function qAddPrinterRow() {
+  qState.settings.printers = qState.settings.printers || [];
+  qState.settings.printers.push({name:'New Printer', price:500, life:3000, service:200, energy:0.15});
+  qRenderSettings();
+}
+function qRemovePrinterRow(i) {
+  qState.settings.printers.splice(i, 1);
+  qRenderSettings();
+}
+function qAddMaterialRow() {
+  qState.settings.materials = qState.settings.materials || [];
+  qState.settings.materials.push({name:'New Material', complexity:3, spool_price:30, spool_kg:1, density:1.2, time_multiplier:1.0, weight_multiplier:1.0});
+  qRenderSettings();
+}
+function qRemoveMaterialRow(i) {
+  qState.settings.materials.splice(i, 1);
+  qRenderSettings();
+}
+
+function qSaveSettings() {
+  var s = qState.settings;
+  s.company          = document.getElementById('qs-company').value || 'LNL3D';
+  s.currency         = document.getElementById('qs-currency').value || '$';
+  s.energy           = parseFloat(document.getElementById('qs-energy').value) || 0.26;
+  s.skilled_labor    = parseFloat(document.getElementById('qs-skilled').value) || 22;
+  s.postprocess_labor= parseFloat(document.getElementById('qs-postprocess').value) || 22;
+  s.min_fee          = parseFloat(document.getElementById('qs-minfee').value) || 5;
+  s.base_fail        = (parseFloat(document.getElementById('qs-basefail').value) || 10) / 100;
+  s.max_fail         = (parseFloat(document.getElementById('qs-maxfail').value) || 50) / 100;
+  s.min_markup       = parseFloat(document.getElementById('qs-minmarkup').value) || 1.2;
+  saveQuotingState();
+  qRenderSettings();
+  alert('Settings saved');
+}
+
+function qExportData() {
+  var data = { settings: qState.settings, quotes: qState.quotes, customers: qState.customers };
+  var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'LNL3D_Backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function qImportData(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      if (data.settings) qState.settings = data.settings;
+      if (data.quotes) qState.quotes = data.quotes;
+      if (data.customers) qState.customers = data.customers;
+      saveQuotingState();
+      qRenderSettings();
+      alert('Data imported successfully');
+    } catch(err) {
+      alert('Import failed: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD LOGIC  (Task 10)
+═══════════════════════════════════════════════════════════════ */
+function qStatusBadge(status) {
+  var map = {Quoting:'quoting', Accepted:'accepted', 'In Progress':'progress', Complete:'complete', Declined:'declined'};
+  var cls = map[status] || 'quoting';
+  return '<span class="q-badge q-badge-' + cls + '">' + (status || 'Quoting') + '</span>';
+}
+
+function qRenderDashboard() {
+  var quotes = qState.quotes || [];
+  var totalQuotes = quotes.length;
+  var accepted = 0, inProgress = 0, complete = 0;
+  quotes.forEach(function(q) {
+    if (q.status === 'Accepted') accepted++;
+    else if (q.status === 'In Progress') inProgress++;
+    else if (q.status === 'Complete') complete++;
+  });
+
+  document.getElementById('q-dash-stats').innerHTML =
+    '<div class="q-stat-card q-stat-blue"><div class="q-stat-label">Total Quotes</div><div class="q-stat-value">' + totalQuotes + '</div><div class="q-stat-sub">All time</div></div>' +
+    '<div class="q-stat-card q-stat-green"><div class="q-stat-label">Accepted</div><div class="q-stat-value">' + accepted + '</div><div class="q-stat-sub">Approved quotes</div></div>' +
+    '<div class="q-stat-card q-stat-yellow"><div class="q-stat-label">In Progress</div><div class="q-stat-value">' + inProgress + '</div><div class="q-stat-sub">Active jobs</div></div>' +
+    '<div class="q-stat-card q-stat-green"><div class="q-stat-label">Complete</div><div class="q-stat-value">' + complete + '</div><div class="q-stat-sub">Finished jobs</div></div>';
+
+  // Recent quotes table
+  var recent = quotes.slice().sort(function(a, b) { return (b.serial||0) - (a.serial||0); }).slice(0, 5);
+  var tbody = document.getElementById('q-dash-recent-body');
+  if (recent.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--q-text3);padding:24px">No quotes yet</td></tr>';
+  } else {
+    tbody.innerHTML = recent.map(function(q) {
+      var c = qCalcFromQuoteData(q);
+      var qp = parseFloat(q.quoted_price || 0);
+      return '<tr>' +
+        '<td class="q-td-mono" style="font-size:11px">' + qFmtSerial(q.serial||0) + '</td>' +
+        '<td style="font-weight:500;font-size:12px">' + (q.customer || '-') + '</td>' +
+        '<td style="color:var(--q-text2);font-size:12px">' + ((q.description || '').slice(0, 24)) + '</td>' +
+        '<td>' + qStatusBadge(q.status) + '</td>' +
+        '<td class="q-td-right q-td-mono q-text-green" style="font-size:12px">' + qCur(c.suggested) + '</td>' +
+        '<td class="q-td-right q-td-mono q-text-orange" style="font-size:12px">' + (qp > 0 ? qCur(qp) : '-') + '</td>' +
+        '<td style="color:var(--q-text3);font-size:11px">' + (q.date || '-') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   QUOTE LOG LOGIC  (Task 10)
+═══════════════════════════════════════════════════════════════ */
+function qRenderQuoteLog() {
+  var search = (document.getElementById('q-log-search').value || '').toLowerCase();
+  var statusFilter = document.getElementById('q-log-filter-status').value || '';
+
+  var quotes = (qState.quotes || []).slice().sort(function(a, b) { return (b.serial||0) - (a.serial||0); });
+  if (search) {
+    quotes = quotes.filter(function(q) {
+      return (q.customer || '').toLowerCase().indexOf(search) >= 0 ||
+             (q.description || '').toLowerCase().indexOf(search) >= 0 ||
+             (q.quote_id || q.id || '').toLowerCase().indexOf(search) >= 0;
+    });
+  }
+  if (statusFilter) {
+    quotes = quotes.filter(function(q) { return q.status === statusFilter; });
+  }
+
+  var tbody = document.getElementById('q-log-body');
+  var empty = document.getElementById('q-log-empty');
+  var tableWrap = document.getElementById('q-log-table-wrap');
+
+  if (quotes.length === 0) {
+    tableWrap.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  tableWrap.style.display = '';
+  empty.style.display = 'none';
+
+  tbody.innerHTML = quotes.map(function(q) {
+    var c = qCalcFromQuoteData(q);
+    var serial = q.serial || 0;
+    return '<tr>' +
+      '<td class="q-td-mono">' + qFmtSerial(serial) + '</td>' +
+      '<td class="q-td-mono" style="font-size:11px">' + (q.quote_id || q.id || '-') + '</td>' +
+      '<td style="white-space:nowrap;font-size:12px">' + (q.date || q.created || '-').slice(0, 10) + '</td>' +
+      '<td style="font-weight:500">' + (q.customer || '-') + '</td>' +
+      '<td style="color:var(--q-text2);font-size:12px">' + (q.description || '-') + '</td>' +
+      '<td>' + qStatusBadge(q.status) + '</td>' +
+      '<td class="q-td-center">' + (q.quantity || 1) + '</td>' +
+      '<td class="q-td-right q-td-mono q-text-green">' + qCur(c.suggested) + '</td>' +
+      '<td><div style="display:flex;gap:4px">' +
+        '<button class="q-btn q-btn-ghost q-btn-sm" onclick="qEditQuote(' + serial + ')">Edit</button>' +
+        '<button class="q-btn q-btn-danger q-btn-sm" onclick="qDeleteQuote(' + serial + ')">&#10005;</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function qDeleteQuote(serial) {
+  if (!confirm('Delete quote #' + qFmtSerial(serial) + '? This cannot be undone.')) return;
+  qState.quotes = (qState.quotes || []).filter(function(q) { return q.serial !== serial; });
+  saveQuotingState();
+  qRenderQuoteLog();
+}
+
+function qEditQuote(serial) {
+  var q = (qState.quotes || []).find(function(x) { return x.serial === serial; });
+  if (!q) return;
+  qCurrentEditSerial = serial;
+  showQTab('quote');
+  qPopulateFormSelects();
+  qSetFormData(q);
+  document.getElementById('q-page-title').textContent = 'Editing Quote #' + qFmtSerial(serial);
+  document.getElementById('q-page-sub').textContent = (q.customer || '') + ' - ' + (q.description || '');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CUSTOMERS TAB LOGIC  (Task 11)
+═══════════════════════════════════════════════════════════════ */
+function qRenderCustomers() {
+  var search = (document.getElementById('q-cust-search').value || '').toLowerCase();
+  var custs = (qState.customers || []).slice();
+  if (search) {
+    custs = custs.filter(function(c) {
+      return (c.name || '').toLowerCase().indexOf(search) >= 0 ||
+             (c.company || '').toLowerCase().indexOf(search) >= 0 ||
+             (c.email || '').toLowerCase().indexOf(search) >= 0;
+    });
+  }
+
+  var tbody = document.getElementById('q-cust-body');
+  var empty = document.getElementById('q-cust-empty');
+  var tableWrap = document.getElementById('q-cust-table-wrap');
+
+  if (custs.length === 0) {
+    tableWrap.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  tableWrap.style.display = '';
+  empty.style.display = 'none';
+
+  tbody.innerHTML = custs.map(function(c, idx) {
+    var created = c.created ? new Date(c.created).toLocaleDateString() : (c.created_at ? new Date(c.created_at).toLocaleDateString() : '-');
+    return '<tr>' +
+      '<td style="font-weight:500">' + (c.name || '-') + '</td>' +
+      '<td style="color:var(--q-text2)">' + (c.company || '-') + '</td>' +
+      '<td style="color:var(--q-text2)">' + (c.email || '-') + '</td>' +
+      '<td style="color:var(--q-text2)">' + (c.phone || '-') + '</td>' +
+      '<td style="color:var(--q-text3);font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (c.notes || '-') + '</td>' +
+      '<td style="color:var(--q-text3);font-size:12px;white-space:nowrap">' + created + '</td>' +
+      '<td><div style="display:flex;gap:4px">' +
+        '<button class="q-btn q-btn-ghost q-btn-sm" onclick="qOpenCustomerModal(' + idx + ')">Edit</button>' +
+        '<button class="q-btn q-btn-danger q-btn-sm" onclick="qDeleteCustomer(' + idx + ')">&#10005;</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function qOpenCustomerModal(idx) {
+  var modal = document.getElementById('q-cust-modal');
+  if (idx !== undefined && idx !== null && idx >= 0) {
+    var c = qState.customers[idx];
+    document.getElementById('q-cust-modal-title').textContent = 'Edit Customer';
+    document.getElementById('q-cust-modal-idx').value = String(idx);
+    document.getElementById('q-cust-modal-name').value = c.name || '';
+    document.getElementById('q-cust-modal-company').value = c.company || '';
+    document.getElementById('q-cust-modal-email').value = c.email || '';
+    document.getElementById('q-cust-modal-phone').value = c.phone || '';
+    document.getElementById('q-cust-modal-notes').value = c.notes || '';
+  } else {
+    document.getElementById('q-cust-modal-title').textContent = 'Add Customer';
+    document.getElementById('q-cust-modal-idx').value = '';
+    document.getElementById('q-cust-modal-name').value = '';
+    document.getElementById('q-cust-modal-company').value = '';
+    document.getElementById('q-cust-modal-email').value = '';
+    document.getElementById('q-cust-modal-phone').value = '';
+    document.getElementById('q-cust-modal-notes').value = '';
+  }
+  modal.classList.add('open');
+}
+
+function qSaveCustomerModal() {
+  var name = document.getElementById('q-cust-modal-name').value.trim();
+  if (!name) { alert('Name is required'); return; }
+  var idxStr = document.getElementById('q-cust-modal-idx').value;
+  var data = {
+    name: name,
+    company: document.getElementById('q-cust-modal-company').value.trim(),
+    email: document.getElementById('q-cust-modal-email').value.trim(),
+    phone: document.getElementById('q-cust-modal-phone').value.trim(),
+    notes: document.getElementById('q-cust-modal-notes').value.trim()
+  };
+  if (idxStr !== '') {
+    var idx = parseInt(idxStr);
+    if (qState.customers[idx]) {
+      Object.assign(qState.customers[idx], data);
+    }
+  } else {
+    qState.customers = qState.customers || [];
+    data.created = new Date().toISOString();
+    qState.customers.push(data);
+  }
+  saveQuotingState();
+  document.getElementById('q-cust-modal').classList.remove('open');
+  qRenderCustomers();
+}
+
+function qDeleteCustomer(idx) {
+  var c = qState.customers[idx];
+  if (!c) return;
+  if (!confirm('Delete ' + (c.name || 'this customer') + '?')) return;
+  qState.customers.splice(idx, 1);
+  saveQuotingState();
+  qRenderCustomers();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FULL QUOTE FORM LOGIC  (Task 12)
+═══════════════════════════════════════════════════════════════ */
+var qCurrentEditSerial = null;
+
+function qPopulateFormSelects() {
+  var printers = qState.settings.printers || [];
+  var materials = qState.settings.materials || [];
+  var pSel = document.getElementById('qf-printer');
+  var fSel = document.getElementById('qf-filament');
+  var sfSel = document.getElementById('qf-support-filament');
+  if (pSel) pSel.innerHTML = printers.map(function(p) { return '<option>' + p.name + '</option>'; }).join('');
+  if (fSel) fSel.innerHTML = materials.map(function(m) { return '<option>' + m.name + '</option>'; }).join('');
+  if (sfSel) sfSel.innerHTML = '<option value="">None</option>' + materials.map(function(m) { return '<option>' + m.name + '</option>'; }).join('');
+}
+
+function qGetFormData() {
+  var v = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+  return {
+    customer:         v('qf-customer'),
+    project:          v('qf-project'),
+    description:      v('qf-description'),
+    date:             v('qf-date'),
+    status:           v('qf-status'),
+    rush:             v('qf-rush'),
+    notes:            v('qf-notes'),
+    printer:          v('qf-printer'),
+    filament:         v('qf-filament'),
+    weight_g:         v('qf-weight'),
+    print_time:       v('qf-printtime'),
+    complexity:       v('qf-complexity'),
+    quantity:         v('qf-qty'),
+    quoted_price:     v('qf-quoted'),
+    support_filament: v('qf-support-filament'),
+    support_weight_g: v('qf-support-weight'),
+    prep_model:       v('qf-prep-model'),
+    prep_slice:       v('qf-prep-slice'),
+    post_remove:      v('qf-post-remove'),
+    post_support:     v('qf-post-support'),
+    post_extra:       v('qf-post-extra'),
+    fin_sand:         v('qf-fin-sand'),
+    fin_paint:        v('qf-fin-paint'),
+    fin_hardware:     v('qf-fin-hardware'),
+    fin_other:        v('qf-fin-other'),
+    ship_pack:        v('qf-ship-pack'),
+    ship_cost:        v('qf-ship-cost'),
+    consumables:      v('qf-consumables')
+  };
+}
+
+function qSetFormData(q) {
+  var s = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+  s('qf-customer', q.customer);
+  s('qf-project', q.project || '');
+  s('qf-description', q.description);
+  s('qf-date', q.date);
+  s('qf-status', q.status || 'Quoting');
+  s('qf-rush', q.rush || '1.0');
+  s('qf-notes', q.notes);
+  s('qf-printer', q.printer);
+  s('qf-filament', q.filament);
+  s('qf-weight', q.weight_g || 0);
+  s('qf-printtime', q.print_time);
+  s('qf-complexity', q.complexity || 1);
+  s('qf-qty', q.quantity || 1);
+  s('qf-quoted', q.quoted_price || '');
+  s('qf-support-filament', q.support_filament || '');
+  s('qf-support-weight', q.support_weight_g || 0);
+  s('qf-prep-model', q.prep_model || 0);
+  s('qf-prep-slice', q.prep_slice || 0);
+  s('qf-post-remove', q.post_remove !== undefined ? q.post_remove : 2);
+  s('qf-post-support', q.post_support !== undefined ? q.post_support : 5);
+  s('qf-post-extra', q.post_extra || 0);
+  s('qf-fin-sand', q.fin_sand || 0);
+  s('qf-fin-paint', q.fin_paint || 0);
+  s('qf-fin-hardware', q.fin_hardware || 0);
+  s('qf-fin-other', q.fin_other || 0);
+  s('qf-ship-pack', q.ship_pack || 0);
+  s('qf-ship-cost', q.ship_cost || 0);
+  s('qf-consumables', q.consumables || 0);
+  qUpdateQuoteCalc();
+}
+
+function qUpdateQuoteCalc() {
+  var q = qGetFormData();
+  if (!qState.settings || !qState.settings.materials) return;
+  var c = qCalcFromQuoteData(q);
+  var setText = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+  setText('qp-filament',    qCur(c.filamentCost + c.suppCost));
+  setText('qp-elec',        qCur(c.elecCost));
+  setText('qp-depr',        qCur(c.deprCost));
+  setText('qp-consumables', qCur(c.consumables));
+  setText('qp-prep',        qCur(c.prepLabor));
+  setText('qp-post',        qCur(c.postLabor));
+  setText('qp-fin',         qCur(c.finishing));
+  setText('qp-ship',        qCur(c.shipping));
+  setText('qp-fail',        (c.fail * 100).toFixed(1) + '%');
+  setText('qp-costpc',      qCur(c.costPP));
+  setText('qp-markup',      c.markup.toFixed(2) + 'x');
+  setText('qp-suggested',   qCur(c.suggested));
+  setText('qp-quoted',      c.quoted > 0 ? qCur(c.quoted) : '\\u2014');
+  setText('qp-profitpc',    qCur(c.profitPP));
+  setText('qp-margin',      (c.margin * 100).toFixed(1) + '%');
+  setText('qp-totalprofit', qCur(c.totalProfit));
+
+  // Alert if quoted below cost
+  var alertArea = document.getElementById('q-alert-area');
+  if (alertArea) {
+    if (c.quoted > 0 && c.quoted < c.costTotal) {
+      alertArea.innerHTML = '<div class="q-alert q-alert-danger">Quoted price (' + qCur(c.quoted) + ') is below total cost (' + qCur(c.costTotal) + ').</div>';
+    } else {
+      alertArea.innerHTML = '';
+    }
+  }
+
+  // Pricing schedule
+  var schedBody = document.getElementById('qp-schedule-body');
+  if (schedBody) {
+    var qty = parseInt(q.quantity || 1);
+    schedBody.innerHTML = (c.schedule || []).map(function(row) {
+      var applicableQtys = c.schedule.filter(function(r) { return qty >= r.qty; }).map(function(r) { return r.qty; });
+      var maxApplicable = applicableQtys.length > 0 ? Math.max.apply(null, applicableQtys) : -1;
+      var isCurrent = (qty >= row.qty && row.qty === maxApplicable);
+      return '<tr' + (isCurrent ? ' style="background:var(--q-bg3)"' : '') + '>' +
+        '<td>' + (row.qty || 1) + '</td>' +
+        '<td class="q-td-right q-td-mono">' + qCur(row.pricePP) + '</td>' +
+        '<td class="q-td-right q-td-mono">' + qCur(row.total) + '</td>' +
+        '<td class="q-td-right q-td-mono">' + (row.margin * 100).toFixed(1) + '%</td>' +
+      '</tr>';
+    }).join('');
+  }
+}
+
+function qClearForm() {
+  qCurrentEditSerial = null;
+  document.getElementById('q-page-title').textContent = 'New Quote';
+  document.getElementById('q-page-sub').textContent = 'Fill in the job details to generate a quote';
+  var today = new Date().toISOString().slice(0, 10);
+  qPopulateFormSelects();
+  qSetFormData({
+    date: today,
+    status: 'Quoting',
+    rush: '1.0',
+    complexity: 1,
+    quantity: 1,
+    post_remove: 2,
+    post_support: 5,
+    printer: (qState.settings.printers || [])[0] ? qState.settings.printers[0].name : '',
+    filament: (qState.settings.materials || [])[0] ? qState.settings.materials[0].name : ''
+  });
+  var alertArea = document.getElementById('q-alert-area');
+  if (alertArea) alertArea.innerHTML = '';
+}
+
+async function qLogFullQuote() {
+  var q = qGetFormData();
+  if (!q.customer) { alert('Please enter a customer name.'); return; }
+  if (!q.description) { alert('Please enter a description.'); return; }
+
+  var c = qCalcFromQuoteData(q);
+
+  // Ensure state is fresh
+  await loadQuotingState();
+
+  if (qCurrentEditSerial !== null) {
+    // Update existing quote
+    var idx = (qState.quotes || []).findIndex(function(x) { return x.serial === qCurrentEditSerial; });
+    if (idx < 0) { alert('Quote not found'); return; }
+    qState.quotes[idx] = Object.assign({}, qState.quotes[idx], q, {
+      updated_at: new Date().toISOString(),
+      calc_cost_pp: c.costPP,
+      calc_suggested: c.suggested,
+      calc_margin: c.margin,
+      calc_profit: c.totalProfit
+    });
+    await saveQuotingState();
+    alert('Quote #' + qFmtSerial(qCurrentEditSerial) + ' updated');
+    qCurrentEditSerial = null;
+    qClearForm();
+    showQTab('log');
+    return;
+  }
+
+  // New quote
+  var serial = qState.settings.next_serial || 1;
+  var quoteId = qFmtSerial(serial) + '-' + (q.date || '').replace(/-/g, '') + '-' + (q.customer || '').replace(/\\s/g, '').slice(0, 3).toUpperCase();
+  var entry = Object.assign({}, q, {
+    serial: serial,
+    quote_id: quoteId,
+    logged_at: new Date().toISOString(),
+    calc_cost_pp: c.costPP,
+    calc_suggested: c.suggested,
+    calc_margin: c.margin,
+    calc_profit: c.totalProfit
+  });
+
+  qState.quotes.push(entry);
+  qState.settings.next_serial = serial + 1;
+
+  // Auto-create customer if new
+  var existingCust = (qState.customers || []).find(function(cx) { return (cx.name || '') === q.customer; });
+  if (!existingCust) {
+    qState.customers = qState.customers || [];
+    qState.customers.push({ name: q.customer, created: new Date().toISOString() });
+  }
+
+  await saveQuotingState();
+  alert('Quote #' + qFmtSerial(serial) + ' logged for ' + q.customer + ' - ' + qCur(c.suggested));
+  qCurrentEditSerial = null;
+  qClearForm();
+}
+
+function prefillQuoteForm(qqItemsData) {
+  if (!qqItemsData || qqItemsData.length === 0) return;
+  qPopulateFormSelects();
+  // Use first item for pre-fill
+  var item = qqItemsData[0];
+  var mat = qGetMaterial(item.filament);
+  var timeMult = mat ? (mat.time_multiplier || 1.0) : 1.0;
+  var weightMult = mat ? (mat.weight_multiplier || 1.0) : 1.0;
+  var adjWeight = (item.slicerData.base_weight_g || 0) * weightMult;
+  var adjTimeH = ((item.slicerData.base_time_minutes || 0) / 60) * timeMult;
+  var customer = document.getElementById('qq-customer') ? document.getElementById('qq-customer').value : '';
+
+  var today = new Date().toISOString().slice(0, 10);
+  qSetFormData({
+    customer: customer,
+    description: item.slicerData.filename || '',
+    date: today,
+    status: 'Quoting',
+    rush: '1.0',
+    printer: item.printer,
+    filament: item.filament,
+    weight_g: adjWeight.toFixed(2),
+    print_time: adjTimeH.toFixed(2),
+    complexity: mat ? mat.complexity : 1,
+    quantity: item.quantity || 1,
+    post_remove: 2,
+    post_support: 5
+  });
+
+  // If multiple items, add a note
+  if (qqItemsData.length > 1) {
+    var noteLines = qqItemsData.map(function(it, i) {
+      var m = qGetMaterial(it.filament);
+      var wm = m ? (m.weight_multiplier || 1.0) : 1.0;
+      var tm = m ? (m.time_multiplier || 1.0) : 1.0;
+      return (i + 1) + '. ' + (it.slicerData.filename || 'unknown') + ' (' + it.filament + ', ' +
+        ((it.slicerData.base_weight_g || 0) * wm).toFixed(1) + 'g, ' +
+        (((it.slicerData.base_time_minutes || 0) / 60) * tm).toFixed(2) + 'h)';
+    });
+    var notesEl = document.getElementById('qf-notes');
+    if (notesEl) notesEl.value = 'Multi-file quote from slicer:\\n' + noteLines.join('\\n');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTO-LOAD STATE ON STARTUP  (Task 13)
+═══════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  loadQuotingState().then(function() {
+    // State is now loaded and ready for quick quote or any tab
+    qRenderDashboard();
+  });
+});
 </script>
 </body>
 </html>
