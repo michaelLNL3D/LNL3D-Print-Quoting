@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+*.AppImage
+*.stl
+*.obj
+*.gcode
+*.3mf
+Dockerfile
+docker-compose.yml
+.dockerignore
