@@ -1373,6 +1373,8 @@ HTML = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>3D Print Quoting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:       #0f1117;
@@ -1650,9 +1652,166 @@ HTML = """<!DOCTYPE html>
   .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; color: var(--muted); text-align: center; gap: 0.75rem; }
   .placeholder-icon { font-size: 3rem; opacity: .3; }
   .placeholder-text { font-size: 0.85rem; opacity: .6; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     PHASE NAVIGATION
+  ═══════════════════════════════════════════════════════════════ */
+  .phase-hidden { display: none !important; }
+
+  /* ── Quoting Phase Design Tokens ── */
+  #quoting-phase {
+    --q-bg:       #0d1117;
+    --q-bg2:      #161b22;
+    --q-bg3:      #21262d;
+    --q-bg4:      #30363d;
+    --q-border:   #30363d;
+    --q-border2:  #484f58;
+    --q-text:     #e6edf3;
+    --q-text2:    #8b949e;
+    --q-text3:    #6e7681;
+    --q-accent:   #1a6fde;
+    --q-accent2:  #388bfd;
+    --q-green:    #3fb950;
+    --q-green2:   #196c2e;
+    --q-yellow:   #d29922;
+    --q-red:      #f85149;
+    --q-cyan:     #39d0d8;
+    --q-orange:   #ff9f43;
+    --q-font-head: 'Syne', sans-serif;
+    --q-font-body: 'DM Sans', sans-serif;
+    --q-font-mono: 'DM Mono', monospace;
+    --q-rad:  6px;
+    --q-rad2: 10px;
+    --q-shadow: 0 4px 24px rgba(0,0,0,.4);
+    font-family: var(--q-font-body);
+    background: var(--q-bg);
+    color: var(--q-text);
+    min-height: 100vh;
+  }
+
+  /* ── Quoting Topbar ── */
+  .q-topbar {
+    background: var(--q-bg2);
+    border-bottom: 1px solid var(--q-border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    height: 54px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .q-topbar-logo {
+    font-family: var(--q-font-head);
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--q-text);
+    letter-spacing: -.5px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+  }
+  .q-topbar-logo span { color: var(--q-accent2); }
+  .q-logo-badge {
+    background: var(--q-accent);
+    color: #fff;
+    font-size: 10px;
+    font-family: var(--q-font-mono);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  /* ── Quoting Nav Tabs ── */
+  .q-nav { display: flex; gap: 2px; margin-left: 8px; }
+  .q-nav-tab {
+    background: none;
+    border: none;
+    color: var(--q-text2);
+    font-size: 13px;
+    font-family: var(--q-font-body);
+    font-weight: 500;
+    padding: 0 14px;
+    height: 54px;
+    display: flex; align-items: center; gap: 7px;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+    cursor: pointer;
+  }
+  .q-nav-tab:hover { color: var(--q-text); }
+  .q-nav-tab.active { color: var(--q-text); border-bottom-color: var(--q-accent2); }
+  .q-nav-tab .tab-icon { font-size: 15px; opacity: .8; }
+
+  .q-topbar-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  /* ── Quoting Buttons ── */
+  .q-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px;
+    border-radius: var(--q-rad);
+    font-size: 13px; font-weight: 500;
+    border: 1px solid transparent;
+    transition: all .15s;
+    white-space: nowrap;
+    cursor: pointer;
+    font-family: var(--q-font-body);
+  }
+  .q-btn-ghost { background: none; color: var(--q-text2); border-color: var(--q-border2); }
+  .q-btn-ghost:hover { background: var(--q-bg3); color: var(--q-text); }
+  .q-btn-primary { background: var(--q-accent); color: #fff; border-color: var(--q-accent); }
+  .q-btn-primary:hover { background: var(--q-accent2); }
+  .q-btn-success { background: var(--q-green2); color: var(--q-green); border-color: #238636; }
+  .q-btn-success:hover { background: #238636; color: #fff; }
+  .q-btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ── Quoting Main Content ── */
+  .q-main { flex: 1; padding: 28px; max-width: 1400px; margin: 0 auto; width: 100%; }
+  .q-tab-content { display: none; }
+  .q-tab-content.active { display: block; }
+
+  /* ── Quoting Cards ── */
+  .q-card {
+    background: var(--q-bg2);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-rad2);
+    padding: 20px;
+  }
+  .q-card-header {
+    font-family: var(--q-font-head);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--q-text2);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Quoting Form Elements ── */
+  .q-form-group { display: flex; flex-direction: column; gap: 5px; }
+  .q-form-label {
+    font-size: 12px; font-weight: 600; color: var(--q-text2);
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .q-form-input, .q-form-select {
+    background: var(--q-bg3);
+    border: 1px solid var(--q-border);
+    border-radius: var(--q-rad);
+    color: var(--q-text);
+    font-size: 13px;
+    padding: 8px 10px;
+    transition: border-color .15s;
+    width: 100%;
+    font-family: var(--q-font-body);
+  }
+  .q-form-input:focus, .q-form-select:focus {
+    outline: none;
+    border-color: var(--q-accent2);
+    background: var(--q-bg2);
+  }
 </style>
 </head>
 <body>
+<div id="slicer-phase">
 <div style="max-width:1100px;margin:0 auto">
   <h1>3D Print Quoting</h1>
   <p class="subtitle">Drop a model, configure settings, get an instant quote.</p>
@@ -3174,6 +3333,81 @@ setInterval(() => {
     if (_debugOpen) loadDebugLog();
   }).catch(()=>{});
 }, 10000);
+</script>
+</div><!-- /slicer-phase -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     QUOTING PHASE
+═══════════════════════════════════════════════════════════════ -->
+<div id="quoting-phase" style="display:none">
+  <div class="q-topbar">
+    <div class="q-topbar-logo" onclick="showQTab('dashboard')">
+      LNL3D <span>Quote</span> <span class="q-logo-badge">v2</span>
+    </div>
+    <nav class="q-nav">
+      <button class="q-nav-tab active" data-qtab="dashboard" onclick="showQTab('dashboard')">
+        <span class="tab-icon">&#9632;</span> Dashboard
+      </button>
+      <button class="q-nav-tab" data-qtab="quote" onclick="showQTab('quote')">
+        <span class="tab-icon">&#9998;</span> New Quote
+      </button>
+      <button class="q-nav-tab" data-qtab="log" onclick="showQTab('log')">
+        <span class="tab-icon">&#128196;</span> Quote Log
+      </button>
+      <button class="q-nav-tab" data-qtab="customers" onclick="showQTab('customers')">
+        <span class="tab-icon">&#128101;</span> Customers
+      </button>
+      <button class="q-nav-tab" data-qtab="settings" onclick="showQTab('settings')">
+        <span class="tab-icon">&#9881;</span> Settings
+      </button>
+    </nav>
+    <div class="q-topbar-actions">
+      <button class="q-btn q-btn-ghost q-btn-sm" onclick="showPhase('slicer')">&#8592; Back to Slicer</button>
+    </div>
+  </div>
+  <div class="q-main">
+    <div id="qtab-dashboard" class="q-tab-content active">
+      <div class="q-card"><div class="q-card-header">Dashboard</div><p style="color:var(--q-text2)">Dashboard coming soon.</p></div>
+    </div>
+    <div id="qtab-quote" class="q-tab-content">
+      <div class="q-card"><div class="q-card-header">New Quote</div><p style="color:var(--q-text2)">Full quote form coming soon.</p></div>
+    </div>
+    <div id="qtab-log" class="q-tab-content">
+      <div class="q-card"><div class="q-card-header">Quote Log</div><p style="color:var(--q-text2)">Quote log coming soon.</p></div>
+    </div>
+    <div id="qtab-customers" class="q-tab-content">
+      <div class="q-card"><div class="q-card-header">Customers</div><p style="color:var(--q-text2)">Customers tab coming soon.</p></div>
+    </div>
+    <div id="qtab-settings" class="q-tab-content">
+      <div class="q-card"><div class="q-card-header">Settings</div><p style="color:var(--q-text2)">Settings tab coming soon.</p></div>
+    </div>
+  </div>
+</div><!-- /quoting-phase -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   PHASE NAVIGATION
+═══════════════════════════════════════════════════════════════ */
+function showPhase(phase) {
+  const slicer  = document.getElementById('slicer-phase');
+  const quoting = document.getElementById('quoting-phase');
+  if (phase === 'quoting') {
+    slicer.style.display  = 'none';
+    quoting.style.display = 'block';
+  } else {
+    quoting.style.display = 'none';
+    slicer.style.display  = 'block';
+  }
+}
+
+function showQTab(tab) {
+  document.querySelectorAll('.q-tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.q-nav-tab').forEach(el => el.classList.remove('active'));
+  const content = document.getElementById('qtab-' + tab);
+  if (content) content.classList.add('active');
+  const navBtn = document.querySelector('.q-nav-tab[data-qtab="' + tab + '"]');
+  if (navBtn) navBtn.classList.add('active');
+}
 </script>
 </body>
 </html>
