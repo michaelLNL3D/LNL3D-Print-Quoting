@@ -1396,6 +1396,8 @@ HTML = """<!DOCTYPE html>
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
+  }
+  #slicer-phase {
     padding: 2rem 1rem;
   }
   h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; margin-bottom: 0.25rem; }
@@ -3199,13 +3201,13 @@ function showResults(d) {
     sendBtn.id = 'send-to-quote-single';
     sendBtn.className = 'send-to-quote-btn';
     sendBtn.textContent = 'Send to Quote \u2192';
-    sendBtn.onclick = function() {
-      _slicerResultsForQuote = [extractSlicerBaseline(d)];
-      sendToQuickQuote();
-    };
     const dlParent = dlGcode ? dlGcode.parentElement : document.getElementById('results');
     if (dlParent) dlParent.appendChild(sendBtn);
   }
+  sendBtn.onclick = function() {
+    _slicerResultsForQuote = [extractSlicerBaseline(d)];
+    sendToQuickQuote();
+  };
 }
 
 function showError(msg) {
@@ -3672,9 +3674,9 @@ async function loadQuotingState() {
 async function saveQuotingState() {
   try {
     await Promise.all([
-      fetch('/api/qdata/settings',  { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.settings) }),
-      fetch('/api/qdata/quotes',    { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.quotes) }),
-      fetch('/api/qdata/customers', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.customers) })
+      fetch('/api/qdata/settings',  { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.settings) }),
+      fetch('/api/qdata/quotes',    { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.quotes) }),
+      fetch('/api/qdata/customers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.customers) })
     ]);
   } catch(e) {
     console.error('saveQuotingState failed:', e);
@@ -3847,7 +3849,8 @@ let qqItems = [];    // [{slicerData, printer, filament, quantity, calc}]
 function openQuickQuote(slicerResults) {
   qqItems = slicerResults.map(sr => {
     const defaultPrinter  = (qState.settings.printers||[])[0]?.name || '';
-    const defaultFilament = 'PLA+';
+    const mats = qState.settings.materials || [];
+    const defaultFilament = (mats.find(m => m.name.includes('PLA')) || mats[0])?.name || 'PLA+';
     const calc = qCalcQuickQuote(sr, { printer: defaultPrinter, filament: defaultFilament, quantity: 1 });
     return {
       slicerData: sr,
@@ -3921,7 +3924,7 @@ function renderQuickQuote() {
       '<div class="qq-item-controls">' +
         '<div><label>Printer</label><select onchange="qqUpdateItem(' + idx + ',\'printer\',this.value)">' + printerOpts + '</select></div>' +
         '<div><label>Filament</label><select onchange="qqUpdateItem(' + idx + ',\'filament\',this.value)">' + matOpts + '</select></div>' +
-        '<div><label>Qty</label><input type="number" min="1" value="' + item.quantity + '" onchange="qqUpdateItem(' + idx + ',\'quantity\',this.value)"></div>' +
+        '<div><label>Qty</label><input type="number" min="1" value="' + item.quantity + '" oninput="qqUpdateItem(' + idx + ',\'quantity\',this.value)"></div>' +
       '</div>' +
       '<div class="qq-breakdown">' + breakdownHTML + '</div>' +
     '</div>';
