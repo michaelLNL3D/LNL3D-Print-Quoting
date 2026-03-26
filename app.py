@@ -1542,18 +1542,18 @@ HTML = """<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:       #0f1117;
-    --surface:  #1a1d27;
-    --border:   #2a2d3e;
-    --accent:   #6c63ff;
-    --accent2:  #4ecdc4;
-    --text:     #e8eaf0;
-    --muted:    #7b7f9e;
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --border:   #2a3040;
+    --accent:   #D4A843;
+    --accent2:  #5BA4C9;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
     --danger:   #ff6b6b;
-    --success:  #51cf66;
-    --input-bg: #12141e;
+    --success:  #D4A843;
+    --input-bg: #0d1117;
     --warn:     #ffa94d;
-    --card-bg:  #1e2130;
+    --card-bg:  #161b22;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -1592,8 +1592,8 @@ HTML = """<!DOCTYPE html>
     text-align: center; cursor: pointer; transition: border-color .2s, background .2s;
     margin-bottom: 1.25rem; position: relative;
   }
-  #drop-zone:hover, #drop-zone.dragover { border-color: var(--accent); background: rgba(108,99,255,.06); }
-  #drop-zone.has-file { border-color: var(--accent2); background: rgba(78,205,196,.05); }
+  #drop-zone:hover, #drop-zone.dragover { border-color: var(--accent); background: rgba(212,168,67,.06); }
+  #drop-zone.has-file { border-color: var(--accent2); background: rgba(91,164,201,.05); }
   #drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; pointer-events: none; }
   .drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
   .drop-label { font-size: 0.9rem; color: var(--muted); }
@@ -1628,13 +1628,13 @@ HTML = """<!DOCTYPE html>
     cursor: pointer; user-select: none;
   }
   .feature-row:hover { border-color: var(--accent); }
-  .feature-row.on { border-color: var(--accent2); background: rgba(78,205,196,.05); }
+  .feature-row.on { border-color: var(--accent2); background: rgba(91,164,201,.05); }
   .feature-row input[type=checkbox] { accent-color: var(--accent2); width: 15px; height: 15px; cursor: pointer; }
   .feature-label { font-size: 0.82rem; font-weight: 600; flex: 1; }
   .feature-sub { font-size: 0.7rem; color: var(--muted); }
   .feature-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: .05em; padding: 0.15rem 0.45rem; border-radius: 4px; }
   .badge-orca { background: rgba(255,169,77,.12); color: var(--warn); border: 1px solid rgba(255,169,77,.25); }
-  .badge-tri  { background: rgba(108,99,255,.12); color: var(--accent); border: 1px solid rgba(108,99,255,.25); }
+  .badge-tri  { background: rgba(212,168,67,.12); color: var(--accent); border: 1px solid rgba(212,168,67,.25); }
   /* Divider */
   .divider { border: none; border-top: 1px solid var(--border); margin: 1.1rem 0; }
   /* Run button */
@@ -1659,7 +1659,7 @@ HTML = """<!DOCTYPE html>
   .applied-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
   .applied-tag { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 5px; letter-spacing: 0.04em; }
   .tag-orient { background: rgba(255,169,77,.1); color: var(--warn); border: 1px solid rgba(255,169,77,.25); }
-  .tag-split  { background: rgba(108,99,255,.1); color: var(--accent); border: 1px solid rgba(108,99,255,.25); }
+  .tag-split  { background: rgba(212,168,67,.1); color: var(--accent); border: 1px solid rgba(212,168,67,.25); }
   .tag-complexity { background: rgba(245,158,11,.1); color: #f59e0b; border: 1px solid rgba(245,158,11,.25); }
   #complexity-breakdown { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; font-size: 0.78rem; }
   .cx-header { font-weight: 700; color: #fff; margin-bottom: 0.5rem; font-size: 0.82rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
@@ -1693,7 +1693,7 @@ HTML = """<!DOCTYPE html>
   .cost-table .muted { color: var(--muted); font-size: 0.78rem; }
   .cost-table .total-row td { border-top: 1px solid var(--border); padding-top: 0.65rem; font-size: 1rem; font-weight: 700; color: var(--accent2); }
   /* Qty row */
-  .qty-row { background: rgba(78,205,196,.05); border: 1px solid rgba(78,205,196,.2); border-radius: 8px; padding: 0.65rem 0.85rem; margin-top: 0.75rem; font-size: 0.82rem; display: flex; justify-content: space-between; color: var(--text); }
+  .qty-row { background: rgba(91,164,201,.05); border: 1px solid rgba(91,164,201,.2); border-radius: 8px; padding: 0.65rem 0.85rem; margin-top: 0.75rem; font-size: 0.82rem; display: flex; justify-content: space-between; color: var(--text); }
   .qty-row span { color: var(--accent2); font-weight: 700; }
   /* Error box */
   #error-box { display: none; background: rgba(255,107,107,.08); border: 1px solid rgba(255,107,107,.3); border-radius: 10px; padding: 1rem 1.2rem; color: var(--danger); font-size: 0.82rem; font-family: monospace; white-space: pre-wrap; word-break: break-all; margin-top: 1rem; }
@@ -1703,8 +1703,8 @@ HTML = """<!DOCTYPE html>
   .preset-btn { background:var(--input-bg); border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:0.4rem 0.65rem; font-size:0.75rem; font-weight:700; cursor:pointer; white-space:nowrap; transition:all .15s; }
   .preset-btn:hover { border-color:var(--accent); color:var(--accent); }
   .preset-btn.del-btn:hover { border-color:#ff6b6b; color:#ff6b6b; }
-  .preset-btn.save-btn { border-color:rgba(78,205,196,.4); color:var(--accent2); width:100%; padding:0.5rem; margin-bottom:0.75rem; }
-  .preset-btn.save-btn:hover { background:rgba(78,205,196,.08); }
+  .preset-btn.save-btn { border-color:rgba(91,164,201,.4); color:var(--accent2); width:100%; padding:0.5rem; margin-bottom:0.75rem; }
+  .preset-btn.save-btn:hover { background:rgba(91,164,201,.08); }
   #preset-save-row { display:none; margin-bottom:0.75rem; }
   #preset-save-row input { margin-bottom:0.4rem; }
   #preset-save-actions { display:flex; gap:0.4rem; }
@@ -1716,16 +1716,16 @@ HTML = """<!DOCTYPE html>
   .preset-confirm-no:hover { border-color:var(--accent); color:var(--accent); }
   #file-queue { margin-top:0.75rem; display:none; }
   .queue-item { display:flex; align-items:center; gap:0.5rem; background:var(--input-bg); border:1px solid var(--border); border-radius:7px; padding:0.4rem 0.75rem; margin-bottom:0.3rem; font-size:0.8rem; cursor:pointer; transition:border-color .15s, background .15s; }
-  .queue-item:hover        { background:rgba(108,99,255,.07); }
-  .queue-item.selected     { border-color:var(--accent); background:rgba(108,99,255,.1); }
+  .queue-item:hover        { background:rgba(212,168,67,.07); }
+  .queue-item.selected     { border-color:var(--accent); background:rgba(212,168,67,.1); }
   .queue-item.st-slicing   { border-color:var(--accent); }
-  .queue-item.st-done      { border-color:#51cf66; }
+  .queue-item.st-done      { border-color:#D4A843; }
   .queue-item.st-error     { border-color:#ff6b6b; }
   .queue-fname  { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
   .queue-status { font-size:0.7rem; font-weight:700; letter-spacing:.04em; color:var(--muted); flex-shrink:0; }
   .queue-status.st-pending  { color:var(--muted); }
   .queue-status.st-slicing  { color:var(--accent); }
-  .queue-status.st-done     { color:#51cf66; }
+  .queue-status.st-done     { color:#D4A843; }
   .queue-status.st-error    { color:#ff6b6b; }
   .queue-badge  { font-size:0.65rem; color:var(--accent); flex-shrink:0; }
   .queue-del    { background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.85rem; padding:0 0.2rem; line-height:1; flex-shrink:0; }
@@ -1737,7 +1737,7 @@ HTML = """<!DOCTYPE html>
   .batch-table td { padding:0.4rem 0.5rem; border-bottom:1px solid rgba(42,45,62,.5); }
   .batch-table tr:last-child td { border-bottom:none; }
   .batch-table tbody tr.clickable { cursor:pointer; }
-  .batch-table tbody tr.clickable:hover td { background:rgba(108,99,255,.07); }
+  .batch-table tbody tr.clickable:hover td { background:rgba(212,168,67,.07); }
   .batch-totals td { border-top:1px solid var(--border); font-weight:700; color:var(--accent2); padding-top:0.55rem; }
   .batch-err { color:#ff6b6b; font-size:0.75rem; }
   /* Pre-flight size check panel */
@@ -1749,7 +1749,7 @@ HTML = """<!DOCTYPE html>
   .preflight-info small { display:block; color:var(--muted); font-size:0.72rem; margin-top:0.15rem; }
   .preflight-actions { display:flex; gap:0.35rem; flex-shrink:0; }
   .pf-btn { font-size:0.72rem; font-weight:700; padding:0.3rem 0.6rem; border-radius:5px; border:1px solid; cursor:pointer; background:transparent; transition:all .15s; white-space:nowrap; }
-  .pf-btn.active { background:rgba(78,205,196,.15); border-color:var(--accent2); color:var(--accent2); }
+  .pf-btn.active { background:rgba(91,164,201,.15); border-color:var(--accent2); color:var(--accent2); }
   .pf-btn:not(.active) { border-color:var(--border); color:var(--muted); }
   .pf-btn:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
   .preflight-confirm { width:100%; margin-top:0.75rem; padding:0.65rem; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:0.9rem; font-weight:700; cursor:pointer; }
@@ -1842,14 +1842,15 @@ HTML = """<!DOCTYPE html>
     --q-text:     #e6edf3;
     --q-text2:    #8b949e;
     --q-text3:    #6e7681;
-    --q-accent:   #1a6fde;
-    --q-accent2:  #388bfd;
-    --q-green:    #3fb950;
-    --q-green2:   #196c2e;
+    --q-accent:   #5BA4C9;
+    --q-accent2:  #D4A843;
+    --q-green:    #D4A843;
+    --q-green2:   #5c4a1a;
     --q-yellow:   #d29922;
     --q-red:      #f85149;
-    --q-cyan:     #39d0d8;
-    --q-orange:   #ff9f43;
+    --q-cyan:     #5BA4C9;
+    --q-orange:   #D4A843;
+    --q-danger:   #ff6b6b;
     --q-font-head: 'Syne', sans-serif;
     --q-font-body: 'DM Sans', sans-serif;
     --q-font-mono: 'DM Mono', monospace;
@@ -1933,8 +1934,8 @@ HTML = """<!DOCTYPE html>
   .q-btn-ghost:hover { background: var(--q-bg3); color: var(--q-text); }
   .q-btn-primary { background: var(--q-accent); color: #fff; border-color: var(--q-accent); }
   .q-btn-primary:hover { background: var(--q-accent2); }
-  .q-btn-success { background: var(--q-green2); color: var(--q-green); border-color: #238636; }
-  .q-btn-success:hover { background: #238636; color: #fff; }
+  .q-btn-success { background: var(--q-green2); color: var(--q-green); border-color: #7a6225; }
+  .q-btn-success:hover { background: #7a6225; color: #fff; }
   .q-btn-sm { padding: 4px 10px; font-size: 12px; }
 
   /* ── Quoting Main Content ── */
@@ -2302,7 +2303,7 @@ HTML = """<!DOCTYPE html>
   }
   #quoting-phase .q-alert-danger { background: #3d0c0a; color: var(--q-red); border: 1px solid #6e201c; }
   #quoting-phase .q-alert-info   { background: #0c2d6b; color: var(--q-accent2); border: 1px solid #1a4fa0; }
-  #quoting-phase .q-alert-success { background: #0d3320; color: var(--q-green); border: 1px solid #238636; }
+  #quoting-phase .q-alert-success { background: #2a2210; color: var(--q-green); border: 1px solid #7a6225; }
 
   /* ── Flex helpers ── */
   #quoting-phase .q-flex-between { display: flex; justify-content: space-between; align-items: center; }
@@ -2386,7 +2387,7 @@ HTML = """<!DOCTYPE html>
   .qq-item-controls select:focus,
   .qq-item-controls input:focus {
     outline: none;
-    border-color: #388bfd;
+    border-color: #5BA4C9;
   }
   .qq-item-controls label {
     font-size: 10px; font-weight: 600; color: #6e7681;
@@ -2407,8 +2408,8 @@ HTML = """<!DOCTYPE html>
   }
   .qq-breakdown-label { color: #8b949e; }
   .qq-breakdown-value { color: #e6edf3; font-family: 'DM Mono', monospace; font-weight: 500; }
-  .qq-breakdown-value.accent { color: #388bfd; }
-  .qq-breakdown-value.green  { color: #3fb950; }
+  .qq-breakdown-value.accent { color: #5BA4C9; }
+  .qq-breakdown-value.green  { color: #D4A843; }
   .qq-breakdown-value.yellow { color: #d29922; }
 
   .qq-totals {
@@ -2425,8 +2426,8 @@ HTML = """<!DOCTYPE html>
     display: flex; flex-direction: column; gap: 2px;
   }
   .qq-total-label { font-size: 10px; font-weight: 600; color: #6e7681; text-transform: uppercase; letter-spacing: .5px; }
-  .qq-total-value { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; color: #3fb950; }
-  .qq-total-value.blue { color: #388bfd; }
+  .qq-total-value { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; color: #D4A843; }
+  .qq-total-value.blue { color: #5BA4C9; }
 
   .qq-customer-row {
     display: flex; gap: 12px; align-items: flex-end;
@@ -2444,7 +2445,7 @@ HTML = """<!DOCTYPE html>
     padding: 7px 10px; width: 100%;
     font-family: 'DM Sans', sans-serif;
   }
-  .qq-customer-row input:focus { outline: none; border-color: #388bfd; }
+  .qq-customer-row input:focus { outline: none; border-color: #5BA4C9; }
 
   .qq-actions {
     display: flex; gap: 10px; margin-top: 20px;
@@ -2459,12 +2460,12 @@ HTML = """<!DOCTYPE html>
   }
   .qq-btn-cancel { background: none; color: #8b949e; border-color: #484f58; margin-right: auto; }
   .qq-btn-cancel:hover { background: #21262d; color: #e6edf3; }
-  .qq-btn-pdf { background: #0c2d6b; color: #388bfd; border-color: #1a4fa0; font-size: 12px; padding: 6px 14px; }
-  .qq-btn-pdf:hover { background: #1a4fa0; color: #fff; }
-  .qq-btn-full { background: #1a6fde; color: #fff; border-color: #1a6fde; }
-  .qq-btn-full:hover { background: #388bfd; }
-  .qq-btn-log { background: #196c2e; color: #3fb950; border-color: #238636; }
-  .qq-btn-log:hover { background: #238636; color: #fff; }
+  .qq-btn-pdf { background: #1a2a3a; color: #5BA4C9; border-color: #2a4a5a; font-size: 12px; padding: 6px 14px; }
+  .qq-btn-pdf:hover { background: #2a4a5a; color: #fff; }
+  .qq-btn-full { background: #5BA4C9; color: #fff; border-color: #5BA4C9; }
+  .qq-btn-full:hover { background: #6DB5D6; }
+  .qq-btn-log { background: #5c4a1a; color: #D4A843; border-color: #7a6225; }
+  .qq-btn-log:hover { background: #7a6225; color: #fff; }
 
   /* ── Quick Quote PDF Styles ── */
   .qq-pdf { font-family: 'DM Sans', sans-serif; color: #111827; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -2562,20 +2563,21 @@ HTML = """<!DOCTYPE html>
 
   /* Send to Quote button in slicer results */
   .send-to-quote-btn {
-    background: linear-gradient(135deg, #1a6fde, #388bfd);
+    background: linear-gradient(135deg, #D4A843, #C49535);
     color: #fff; border: none; border-radius: 8px;
     padding: 0.5rem 1rem; font-size: 0.82rem; font-weight: 600;
     cursor: pointer; transition: all .2s;
     margin-top: 0.5rem;
   }
-  .send-to-quote-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(56,139,253,.3); }
+  .send-to-quote-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(212,168,67,.3); }
+  .send-to-quote-btn { color: #0d1117; }
   .slicer-pdf-btns { display: inline-flex; gap: 0.5rem; margin-left: 0.5rem; vertical-align: middle; }
   .slicer-pdf-btn {
-    background: #0c2d6b; color: #388bfd; border: 1px solid #1a4fa0; border-radius: 8px;
+    background: #1a2a3a; color: #5BA4C9; border: 1px solid #2a4a5a; border-radius: 8px;
     padding: 0.45rem 0.85rem; font-size: 0.75rem; font-weight: 600;
     cursor: pointer; transition: all .2s; white-space: nowrap;
   }
-  .slicer-pdf-btn:hover { background: #1a4fa0; color: #fff; }
+  .slicer-pdf-btn:hover { background: #2a4a5a; color: #fff; }
   .slicer-action-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
 </style>
 </head>
@@ -2799,7 +2801,7 @@ HTML = """<!DOCTYPE html>
           <a class="copy-btn" id="dl-gcode-btn" href="/api/export_gcode" style="margin-left:0.4rem;text-decoration:none;padding:0.35rem 0.7rem">Download GCode</a>
         </div>
 
-        <div id="farm-row" class="qty-row" style="display:none;border-color:rgba(108,99,255,.2);background:rgba(108,99,255,.04);margin-bottom:0.75rem"></div>
+        <div id="farm-row" class="qty-row" style="display:none;border-color:rgba(212,168,67,.2);background:rgba(212,168,67,.04);margin-bottom:0.75rem"></div>
         <div id="applied-row" class="applied-row"></div>
         <div id="complexity-breakdown" style="display:none"></div>
         <div id="warn-row" class="warn-row" style="display:none"></div>
@@ -3990,9 +3992,9 @@ function loadPreset() {
   if (s.quantity)      document.getElementById('quantity').value = s.quantity;
   if (s.size_mode)     setSizeMode(s.size_mode);
   if (s.size_val)      document.getElementById('size-val').value = s.size_val;
-  if (s.auto_orient !== undefined)    document.getElementById('chk-orient').checked = s.auto_orient === 'true' || s.auto_orient === true;
-  if (s.auto_split !== undefined)     document.getElementById('chk-split').checked = s.auto_split === 'true' || s.auto_split === true;
-  if (s.auto_scale_fit !== undefined) document.getElementById('chk-scale-fit').checked = s.auto_scale_fit === 'true' || s.auto_scale_fit === true;
+  if (s.auto_orient !== undefined)    document.getElementById('auto-orient').checked = s.auto_orient === 'true' || s.auto_orient === true;
+  if (s.auto_split !== undefined)     document.getElementById('auto-split').checked = s.auto_split === 'true' || s.auto_split === true;
+  if (s.auto_scale_fit !== undefined) document.getElementById('auto-scale-fit').checked = s.auto_scale_fit === 'true' || s.auto_scale_fit === true;
 }
 
 function savePreset() {
@@ -4027,9 +4029,9 @@ async function confirmSavePreset() {
     size_mode:     sizeMode,
     size_val:      document.getElementById('size-val').value,
     quantity:      document.getElementById('quantity').value,
-    auto_orient:   document.getElementById('chk-orient').checked,
-    auto_split:    document.getElementById('chk-split').checked,
-    auto_scale_fit:document.getElementById('chk-scale-fit').checked,
+    auto_orient:   document.getElementById('auto-orient').checked,
+    auto_split:    document.getElementById('auto-split').checked,
+    auto_scale_fit:document.getElementById('auto-scale-fit').checked,
   };
   try {
     const res = await fetch('/api/presets', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
@@ -5115,31 +5117,45 @@ async function logQuickQuote() {
       print_time:    String(((item.slicerData.base_time_minutes||0)/60) * ((mat && mat.time_multiplier) || 1.0)),
       quantity:      item.quantity,
       complexity:    item.slicerData.complexity || (mat ? mat.complexity : 1),
-      cost_per_piece: c.costPP,
-      price_per_piece: c.pricePP,
-      suggested:     c.suggested,
-      markup:        c.markup,
-      margin:        c.margin,
-      fail_rate:     c.fail,
-      job_id:        item.slicerData.job_id || null
+      support_filament: '',
+      support_weight_g: 0,
+      prep_model: 0, prep_slice: 0,
+      post_remove: 2, post_support: 5, post_extra: 0,
+      fin_sand: 0, fin_paint: 0, fin_hardware: 0, fin_other: 0,
+      consumables: 0,
+      job_id:        item.slicerData.job_id || null,
+      calc_cost_pp:  c.costPP,
+      calc_suggested: c.suggested,
+      calc_margin:   c.margin,
+      calc_profit:   c.totalProfit
     };
   });
 
-  let totalSuggested = 0;
-  lineItems.forEach(li => { totalSuggested += li.suggested; });
+  let totalCost = 0, totalSuggested = 0;
+  lineItems.forEach(li => { totalCost += li.cost_per_piece * li.quantity; totalSuggested += li.suggested; });
+  var totalMargin = totalSuggested > 0 ? (totalSuggested - totalCost) / totalSuggested : 0;
+  var totalProfit = totalSuggested - totalCost;
 
+  var dateStr = now.slice(0, 10);
+  var custInit = (customerName || 'X').substring(0, 3).toUpperCase();
   const quote = {
-    id:            quoteId,
+    quote_id:      serial + '-' + dateStr.replace(/-/g, '') + '-' + custInit,
     serial:        serial,
     customer:      customerName,
+    date:          dateStr,
     status:        'Quoting',
     created:       now,
     updated:       now,
     line_items:    lineItems,
-    total_suggested: totalSuggested,
     quoted_price:  0,
+    ship_pack:     0,
+    ship_cost:     0,
     notes:         'Created via Quick Quote from slicer results',
-    rush:          1.0
+    rush:          1.0,
+    calc_total_cost:      totalCost,
+    calc_total_suggested: totalSuggested,
+    calc_total_margin:    totalMargin,
+    calc_total_profit:    totalProfit
   };
 
   qState.quotes.push(quote);
