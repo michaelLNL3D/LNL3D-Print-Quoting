@@ -2565,11 +2565,7 @@ function extractSlicerBaseline(d) {
   };
 }
 
-async function sendToQuickQuote() {
-  if (_slicerResultsForQuote.length === 0) return;
-  await loadQuotingState();
-  openQuickQuote(_slicerResultsForQuote);
-}
+// sendToQuickQuote is defined in the quoting script block (needs loadQuotingState/openQuickQuote)
 // ── End Quick Quote Bridge ─────────────────────────────────────────────
 
 async function init() {
@@ -4288,6 +4284,13 @@ async function saveQuotingState() {
   }
 }
 
+// ── Quick Quote Bridge (needs loadQuotingState + openQuickQuote from this block) ──
+async function sendToQuickQuote() {
+  if (_slicerResultsForQuote.length === 0) return;
+  await loadQuotingState();
+  openQuickQuote(_slicerResultsForQuote);
+}
+
 /* ── Helpers ── */
 function qGetMaterial(name) {
   return (qState.settings.materials || []).find(m => m.name === name);
@@ -4527,9 +4530,9 @@ function renderQuickQuote() {
     return '<div class="qq-item-card">' +
       '<div class="qq-item-header"><span class="qq-item-filename">' + (item.slicerData.filename||'unknown') + '</span></div>' +
       '<div class="qq-item-controls">' +
-        '<div><label>Printer</label><select onchange="qqUpdateItem(' + idx + ',\'printer\',this.value)">' + printerOpts + '</select></div>' +
-        '<div><label>Filament</label><select onchange="qqUpdateItem(' + idx + ',\'filament\',this.value)">' + matOpts + '</select></div>' +
-        '<div><label>Qty</label><input type="number" min="1" value="' + item.quantity + '" oninput="qqUpdateItem(' + idx + ',\'quantity\',this.value)"></div>' +
+        '<div><label>Printer</label><select onchange="qqUpdateItem(' + idx + ',\\\'printer\\\',this.value)">' + printerOpts + '</select></div>' +
+        '<div><label>Filament</label><select onchange="qqUpdateItem(' + idx + ',\\\'filament\\\',this.value)">' + matOpts + '</select></div>' +
+        '<div><label>Qty</label><input type="number" min="1" value="' + item.quantity + '" oninput="qqUpdateItem(' + idx + ',\\\'quantity\\\',this.value)"></div>' +
       '</div>' +
       '<div class="qq-breakdown">' + breakdownHTML + '</div>' +
     '</div>';
