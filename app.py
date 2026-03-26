@@ -3408,6 +3408,196 @@ function showQTab(tab) {
   const navBtn = document.querySelector('.q-nav-tab[data-qtab="' + tab + '"]');
   if (navBtn) navBtn.classList.add('active');
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   QUOTING STATE & CALC ENGINE  (Task 5)
+═══════════════════════════════════════════════════════════════ */
+let qState = { settings: {}, quotes: [], customers: [] };
+
+async function loadQuotingState() {
+  try {
+    const [sRes, qRes, cRes] = await Promise.all([
+      fetch('/api/qdata/settings'),
+      fetch('/api/qdata/quotes'),
+      fetch('/api/qdata/customers')
+    ]);
+    qState.settings  = await sRes.json();
+    qState.quotes    = await qRes.json();
+    qState.customers = await cRes.json();
+  } catch(e) {
+    console.error('loadQuotingState failed:', e);
+  }
+}
+
+async function saveQuotingState() {
+  try {
+    await Promise.all([
+      fetch('/api/qdata/settings',  { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.settings) }),
+      fetch('/api/qdata/quotes',    { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.quotes) }),
+      fetch('/api/qdata/customers', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(qState.customers) })
+    ]);
+  } catch(e) {
+    console.error('saveQuotingState failed:', e);
+  }
+}
+
+/* ── Helpers ── */
+function qGetMaterial(name) {
+  return (qState.settings.materials || []).find(m => m.name === name);
+}
+function qGetPrinter(name) {
+  const printers = qState.settings.printers || [];
+  return printers.find(p => p.name === name) || printers[0];
+}
+function qParseTime(str) {
+  if (!str) return 0;
+  str = String(str).trim();
+  if (str.includes(':')) {
+    const parts = str.split(':');
+    return parseFloat(parts[0]||0) + parseFloat(parts[1]||0)/60;
+  }
+  return parseFloat(str) || 0;
+}
+function qGetMarkupForQty(qty) {
+  const s = qState.settings;
+  const tiers = [...(s.discounts||[])].sort((a,b) => a.qty - b.qty);
+  let markup = tiers.length ? tiers[0].markup : 2.0;
+  for (const t of tiers) { if (qty >= t.qty) markup = t.markup; }
+  return Math.max(markup, s.min_markup || 1.2);
+}
+function qCur(n) {
+  const sym = (qState.settings && qState.settings.currency) || '$';
+  return sym + parseFloat(n||0).toFixed(2).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
+}
+function qFmtSerial(n) {
+  return String(n).padStart(3, '0');
+}
+
+/* ── Main Calc Engine (ported from LNL3D_Quote.html calcFromQuoteData) ── */
+function qCalcFromQuoteData(q) {
+  const s    = qState.settings;
+  const mat  = qGetMaterial(q.filament);
+  const prt  = qGetPrinter(q.printer);
+  const suppMat = q.support_filament ? qGetMaterial(q.support_filament) : null;
+
+  const weightKg   = (q.weight_g || 0) / 1000;
+  const printH     = qParseTime(q.print_time);
+  const complexity  = parseFloat(q.complexity || 1);
+  const qty        = Math.max(parseInt(q.quantity || 1), 1);
+  const rush       = parseFloat(q.rush || 1.0);
+  const prepMin    = (parseFloat(q.prep_model||0) + parseFloat(q.prep_slice||0));
+  const postMin    = (parseFloat(q.post_remove||0) + parseFloat(q.post_support||0) + parseFloat(q.post_extra||0));
+  const finishing  = (parseFloat(q.fin_sand||0) + parseFloat(q.fin_paint||0) + parseFloat(q.fin_hardware||0) + parseFloat(q.fin_other||0));
+  const shipping   = (parseFloat(q.ship_pack||0) + parseFloat(q.ship_cost||0));
+  const consumables= parseFloat(q.consumables||0);
+
+  // Material costs
+  const filamentCost = mat ? weightKg * (mat.spool_price / mat.spool_kg) : 0;
+  const filComplexity = mat ? mat.complexity : 1;
+  const suppWeightKg = (q.support_weight_g || 0) / 1000;
+  const suppCost = (suppMat && suppWeightKg) ? suppWeightKg * (suppMat.spool_price / suppMat.spool_kg) : 0;
+
+  // Machine costs
+  const deprRate = prt ? (prt.price + prt.service) / prt.life : 0;
+  const elecCost = prt ? printH * prt.energy * (s.energy || 0.26) : 0;
+  const deprCost = printH * deprRate;
+
+  // Failure rate
+  const baseFail = s.base_fail || 0.1;
+  const maxFail  = s.max_fail  || 0.5;
+  const fail = Math.min(baseFail + ((complexity + filComplexity - 2) / 18) * (maxFail - baseFail), maxFail);
+
+  // Machine cost/pc (fail-adjusted)
+  const machinePP = (filamentCost + suppCost + elecCost + deprCost + consumables) * (1 + fail);
+
+  // Labor
+  const skilledRate = s.skilled_labor || 22;
+  const postRate    = s.postprocess_labor || 22;
+  const prepLabor = (prepMin / 60) * skilledRate;
+  const postLabor = (postMin / 60) * postRate;
+  const prepPP    = qty > 0 ? (prepLabor * (1 + fail/4)) / qty : 0;
+  const postPP    = postLabor * (1 + fail);
+  const laborPP   = prepPP + postPP;
+
+  // Finishing & shipping per piece
+  const finPP  = qty > 0 ? finishing / qty : 0;
+  const shipPP = qty > 0 ? shipping / qty : 0;
+
+  // Cost per piece
+  const costPP = machinePP + laborPP + finPP + shipPP;
+
+  // Markup & pricing
+  const baseMarkup = qGetMarkupForQty(qty);
+  const markup     = baseMarkup * rush;
+  const minFee     = s.min_fee || 5;
+  const suggested  = Math.max(costPP * qty * markup, minFee);
+  const quotedRaw  = parseFloat(q.quoted_price || 0);
+  const quoted     = quotedRaw > 0 ? quotedRaw : 0;
+
+  const pricePP    = qty > 0 ? suggested / qty : 0;
+  const profitPP   = Math.max(pricePP - costPP, 0);
+  const margin     = pricePP > 0 ? Math.max((pricePP - costPP) / pricePP, 0) : 0;
+  const costTotal  = costPP * qty;
+  const totalProfit = quoted > 0 ? Math.max(quoted - costTotal, 0) : Math.max(suggested - costTotal, 0);
+
+  // Pricing schedule for all tiers
+  const schedule = (s.discounts||[]).map(tier => {
+    const tQty  = Math.max(tier.qty, 1);
+    const tMkup = Math.max(tier.markup, s.min_markup || 1.2) * rush;
+    const tPrepPP  = tQty > 0 ? (prepLabor * (1 + fail/4)) / tQty : 0;
+    const tFinPP   = tQty > 0 ? finishing / tQty : 0;
+    const tShipPP  = tQty > 0 ? shipping / tQty : 0;
+    const tCostPP  = machinePP + tPrepPP + postPP + tFinPP + tShipPP;
+    const tPriceRaw = tCostPP * tMkup;
+    const tTotal   = Math.max(tPriceRaw * tQty, minFee);
+    const tPricePP = tQty > 0 ? tTotal / tQty : 0;
+    const tMargin  = tPricePP > 0 ? Math.max((tPricePP - tCostPP) / tPricePP, 0) : 0;
+    return { qty: tier.qty, markup: tMkup, costPP: tCostPP, pricePP: tPricePP, total: tTotal, margin: tMargin };
+  });
+
+  return {
+    filamentCost, suppCost, elecCost, deprCost, consumables,
+    prepLabor, postLabor, finishing, shipping,
+    fail, machinePP, laborPP, costPP, baseMarkup, markup,
+    suggested, quoted, pricePP, profitPP, margin, costTotal, totalProfit,
+    schedule, qty, rush
+  };
+}
+
+/* ── Quick Quote bridge: takes slicer data + overrides, applies multipliers ── */
+function qCalcQuickQuote(slicerData, overrides) {
+  const printer  = overrides.printer  || (qState.settings.printers||[])[0]?.name || '';
+  const filament = overrides.filament || 'PLA+';
+  const quantity = overrides.quantity || 1;
+
+  const mat = qGetMaterial(filament);
+  const timeMult   = mat ? (mat.time_multiplier   || 1.0) : 1.0;
+  const weightMult = mat ? (mat.weight_multiplier  || 1.0) : 1.0;
+
+  const adjWeight = (slicerData.base_weight_g || 0) * weightMult;
+  const adjTimeH  = ((slicerData.base_time_minutes || 0) / 60) * timeMult;
+
+  const q = {
+    filename:     slicerData.filename || 'unknown',
+    filament:     filament,
+    printer:      printer,
+    weight_g:     adjWeight,
+    print_time:   String(adjTimeH),
+    complexity:   mat ? mat.complexity : 1,
+    quantity:     quantity,
+    rush:         1.0,
+    prep_model:0, prep_slice:0,
+    post_remove:0, post_support:0, post_extra:0,
+    fin_sand:0, fin_paint:0, fin_hardware:0, fin_other:0,
+    ship_pack:0, ship_cost:0,
+    consumables:0,
+    quoted_price:0,
+    support_filament: null,
+    support_weight_g: 0
+  };
+
+  return qCalcFromQuoteData(q);
+}
 </script>
 </body>
 </html>
