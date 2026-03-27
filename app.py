@@ -23,6 +23,7 @@ from flask import Flask, jsonify, render_template_string, request, send_file
 
 PRUSASLICER  = os.environ.get("PRUSASLICER_PATH",  "/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer")
 ORCASLICER   = os.environ.get("ORCASLICER_PATH",   "/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer")
+HAS_ORCA     = os.path.exists(ORCASLICER)
 PRUSA_VENDOR_DIR = os.environ.get("PRUSA_VENDOR_DIR", "/Applications/PrusaSlicer.app/Contents/Resources/profiles")
 PRUSA_USER_DIR   = os.environ.get("PRUSA_USER_DIR",   os.path.expanduser("~/Library/Application Support/PrusaSlicer"))
 PORT = int(os.environ.get("PORT", 5111))
@@ -296,14 +297,43 @@ def get_build_volume(printer_profile_name):
     return {"x": bed_x, "y": bed_y, "z": max_z}
 
 
-# ── Auto-orient (OrcaSlicer) ──────────────────────────────────────────────────
+# ── Auto-orient ───────────────────────────────────────────────────────────────
 
-def auto_orient(input_path, tmpdir):
+def auto_orient_tweaker(input_path, tmpdir):
     """
-    Use OrcaSlicer CLI to auto-orient the model.
+    Fallback auto-orient using Tweaker-3 when OrcaSlicer is not available.
     Returns (oriented_stl_path, orientation_note).
     Falls back to input_path on failure.
     """
+    try:
+        from tweaker3.MeshTweaker import Tweak
+        from tweaker3 import FileHandler
+
+        fh = FileHandler.FileHandler()
+        objs = fh.load_mesh(input_path)
+        info = {}
+        for part, content in objs.items():
+            mesh = content["mesh"]
+            result = Tweak(mesh, extended_mode=True, verbose=False, min_volume=True)
+            info[part] = {"matrix": result.matrix}
+
+        oriented_path = os.path.join(tmpdir, "tweaker_" + os.path.basename(input_path))
+        fh.write_mesh(objs, info, outputfile=oriented_path, output_type="binarystl")
+        return oriented_path, "auto-oriented (Tweaker)"
+    except Exception as e:
+        _log_error("auto_orient_tweaker", e)
+        return input_path, "orient failed (using original)"
+
+
+def auto_orient(input_path, tmpdir):
+    """
+    Auto-orient the model. Uses OrcaSlicer if available, otherwise Tweaker-3.
+    Returns (oriented_stl_path, orientation_note).
+    Falls back to input_path on failure.
+    """
+    if not HAS_ORCA:
+        return auto_orient_tweaker(input_path, tmpdir)
+
     # Each piece gets its own output subdir so glob never picks up a sibling's file
     piece_name = Path(input_path).stem
     out_root = os.path.join(tmpdir, "oriented", piece_name)
@@ -317,7 +347,8 @@ def auto_orient(input_path, tmpdir):
             input_path,
         )
     except (RuntimeError, OSError) as e:
-        return input_path, f"orient skipped ({e})"
+        _log_error("auto_orient", e)
+        return auto_orient_tweaker(input_path, tmpdir)
 
     # Parse best orientation from stdout
     best_line = ""
@@ -2633,7 +2664,7 @@ HTML = """<!DOCTYPE html>
             <div class="feature-label">Auto-orient</div>
             <div class="feature-sub">Rotate model to optimal print position</div>
           </div>
-          <span class="feature-badge badge-orca">OrcaSlicer</span>
+          <span class="feature-badge badge-orca">""" + ("OrcaSlicer" if HAS_ORCA else "Tweaker") + """</span>
         </label>
         <label class="feature-row" id="split-row">
           <input type="checkbox" id="auto-split" onchange="toggleFeature('split-row','auto-split');if(this.checked)document.getElementById('auto-scale-fit').checked=false;">
