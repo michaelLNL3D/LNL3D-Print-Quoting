@@ -4,3 +4,4 @@ networkx
 rtree
 numpy
 scipy
+tweaker3 @ git+https://github.com/ChristophSchranz/Tweaker-3.git

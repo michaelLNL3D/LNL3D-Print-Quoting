@@ -1,0 +1,16 @@
+services:
+  prusaquoting:
+    build: .
+    image: prusaquoting:latest
+    ports:
+      - "5111:5111"
+    volumes:
+      - "${PRUSASLICER_CONFIG:-${HOME}/.config/PrusaSlicer}:/root/.config/PrusaSlicer"
+      - prusaquoting_data:/data
+    environment:
+      - PORT=5111
+      - PRUSA_USER_DIR=/root/.config/PrusaSlicer
+    restart: unless-stopped
+
+volumes:
+  prusaquoting_data:

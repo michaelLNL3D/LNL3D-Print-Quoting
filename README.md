@@ -26,7 +26,7 @@ This branch is configured for running on a Raspberry Pi 5 (64-bit ARM) via Docke
 
 ```bash
 git clone -b rpi-docker https://github.com/michaelLNL3D/LNL3D-Print-Quoting.git
-cd LNL3D-Print-Quoting/claude_prusaquoting
+cd LNL3D-Print-Quoting
 docker compose up --build
 ```
 
@@ -49,7 +49,7 @@ PRUSASLICER_CONFIG=~/.config/PrusaSlicer docker compose up
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `5111` | Server port |
-| `PRUSASLICER_CONFIG` | `~/Library/Application Support/PrusaSlicer` | Host path to PrusaSlicer config (mounted into container) |
+| `PRUSASLICER_CONFIG` | `~/.config/PrusaSlicer` | Host path to PrusaSlicer config (mounted into container) |
 
 ### Differences from macOS
 
